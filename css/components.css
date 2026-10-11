@@ -250,6 +250,31 @@ text.ts {
   text-anchor: middle;
   font-variant-numeric: lining-nums;
 }
+text.mnum {
+  font-family: var(--ui);
+  font-weight: 600;
+  fill: var(--muted);
+  text-anchor: start;
+}
+text.rehearsal {
+  font-family: var(--serif);
+  font-weight: 700;
+  fill: var(--accent);
+  text-anchor: middle;
+}
+text.ped {
+  font-family: var(--serif);
+  font-style: italic;
+  fill: var(--muted);
+  text-anchor: start;
+}
+text.notename {
+  font-family: var(--ui);
+  font-weight: 700;
+  fill: var(--muted);
+  text-anchor: middle;
+  pointer-events: none;
+}
 .ev {
   color: var(--ink);
   cursor: pointer;
@@ -370,6 +395,25 @@ text.ts {
 }
 .recbar .field > span {
   white-space: nowrap;
+}
+.zoom-ctl {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.zoom-ctl input[type="range"] {
+  width: 110px;
+}
+.tpl-ctl {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.tpl-ctl > span {
+  text-transform: none;
+  letter-spacing: normal;
+  font: inherit;
+  color: var(--ink);
 }
 .btn.rec .dot {
   width: 12px;

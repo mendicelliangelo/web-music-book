@@ -11,11 +11,12 @@ function transposeBy(semi){
     const f=tr.find(e=>!e.r);if(f)beep(noteMidi(f.n[0]));return;
   }
   if(!visible().some(s=>s.events.some(e=>!e.r))){toast(t('t.noNotesToTranspose'));return}
-  const rs=visible().map(s=>transposeEvents(s.events,semi));
+  const newKey=keyAfterTranspose(state.key,semi);
+  const rs=visible().map(s=>transposeEventsInKey(s.events,semi,newKey));
   if(rs.some(r2=>!r2)){toast(t('t.outOfRange'));return}
-  stopPlay();rec();rs.forEach((r2,k)=>{state.staves[k].events=r2});state.sel=-1;state.selEnd=-1;state.selN=-1;render();
+  stopPlay();rec();rs.forEach((r2,k)=>{state.staves[k].events=r2});state.key=newKey;state.sel=-1;state.selEnd=-1;state.selN=-1;render();
   const n=Math.abs(semi),qty=n===12?t('t.qtyOctave'):n===2?t('t.qtyTone'):n===1?t('t.qtySemitone'):t('t.qtyN',{n});
-  toast(t('t.transposedAll',{qty,dir:semi>0?t('t.allDirUp'):t('t.allDirDown')}));
+  toast(t('t.transposedAllKey',{qty,dir:semi>0?t('t.allDirUp'):t('t.allDirDown'),key:keyNameFor(newKey)}));
   const first=rs[0].find(e=>!e.r);if(first)beep(noteMidi(first.n[0]));
 }
 function quantizeAll(){
@@ -47,3 +48,21 @@ function rescaleDur(dir){
   stopPlay();rec();rs.forEach((r2,k)=>{state.staves[k].events=r2});state.sel=-1;state.selEnd=-1;state.selN=-1;render();
   toast(dir>0?t('t.doubledAll'):t('t.halvedAll'));
 }
+function replaceAll(fromL,fromA,toL,toA){
+  const r=isRange()?selRange():null;
+  if(r){
+    const part=EV().slice(r[0],r[1]+1),res=replaceNotes(part,fromL,fromA,toL,toA);
+    if(!res.count){toast(t('t.replaceNone'));return}
+    stopPlay();rec();EV().splice(r[0],part.length,...res.events);render();
+    toast(t('t.replaced',{n:res.count}));return;
+  }
+  if(!visible().some(s=>s.events.some(e=>!e.r))){toast(t('t.noNotesToTranspose'));return}
+  const rs=visible().map(s=>replaceNotes(s.events,fromL,fromA,toL,toA)),total=rs.reduce((a,r2)=>a+r2.count,0);
+  if(!total){toast(t('t.replaceNone'));return}
+  stopPlay();rec();rs.forEach((r2,k)=>{state.staves[k].events=r2.events});render();
+  toast(t('t.replaced',{n:total}));
+}
+$('xReplace').addEventListener('click',e=>{
+  const[fl,fa]=$('xFromNote').value.split(',').map(Number),[tl,ta]=$('xToNote').value.split(',').map(Number);
+  replaceAll(fl,fa,tl,ta);blurIfMouse(e);
+});

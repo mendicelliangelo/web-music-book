@@ -74,6 +74,8 @@ $('btnSelAll').addEventListener('click',e=>{selectAll();blurIfMouse(e)});
 $('btnCopy').addEventListener('click',e=>{copySel(false);blurIfMouse(e)});
 $('btnCut').addEventListener('click',e=>{copySel(true);blurIfMouse(e)});
 $('btnPaste').addEventListener('click',e=>{pasteClip();blurIfMouse(e)});
+$('btnRepeatBar').addEventListener('click',e=>{repeatMeasure();blurIfMouse(e)});
+$('btnPedal').addEventListener('click',e=>{togglePedal();blurIfMouse(e)});
 $('btnOver').addEventListener('click',e=>{toggleOver();blurIfMouse(e)});
 
 /* tasti del pianoforte: pressione e rilascio servono alla registrazione; da tastiera del computer basta un clic */
@@ -135,6 +137,26 @@ function setBpm(v){const b=Math.round(+v);if(!(b>=30&&b<=240))return;stopPlay();
 $('bpmRange').addEventListener('input',e=>setBpm(e.target.value));
 $('bpm').addEventListener('change',e=>{const b=Math.max(30,Math.min(240,Math.round(+e.target.value)||state.bpm));setBpm(b);$('bpm').value=state.bpm});
 $('title').addEventListener('input',e=>{state.title=e.target.value;save()});
+$('zoom').addEventListener('input',e=>{state.zoom=Math.max(.7,Math.min(2,(+e.target.value||100)/100));render()});
+$('measureNumEvery').addEventListener('change',e=>{state.measureNumEvery=+e.target.value||0;render()});
+$('noteNames').addEventListener('change',e=>{state.noteNames=e.target.checked;render()});
+$('noteColors').addEventListener('change',e=>{state.noteColors=e.target.checked;render()});
+$('staffColors').addEventListener('change',e=>{state.staffColors=e.target.checked;render()});
+$('playbackRate').addEventListener('input',e=>{state.playbackRate=Math.max(.5,Math.min(1,(+e.target.value||100)/100));$('playbackRateLabel').textContent=Math.round(state.playbackRate*100)+'%';save()});
+$('loopSel').addEventListener('change',e=>{state.loopSel=e.target.checked;save()});
+$('swing').addEventListener('change',e=>{state.swing=e.target.checked;save()});
+[0,1].forEach(k=>{
+  $('solo'+k).addEventListener('change',e=>{state.staveMix[k].solo=e.target.checked});
+  $('mute'+k).addEventListener('change',e=>{state.staveMix[k].mute=e.target.checked});
+  $('vol'+k).addEventListener('input',e=>{state.staveMix[k].vol=Math.max(0,Math.min(1,(+e.target.value||0)/100))});
+});
+$('btnRehearsal').addEventListener('click',e=>{setRehearsalMark($('rehLetter').value);$('rehLetter').value='';blurIfMouse(e)});
+$('themeSel').addEventListener('change',e=>{
+  const v=e.target.value;
+  if(v==='light'||v==='dark')document.documentElement.setAttribute('data-theme',v);
+  else document.documentElement.removeAttribute('data-theme');
+  try{localStorage.setItem('quaderno-musica-theme',v)}catch(_){}
+});
 
 function switchStaff(dir){
   if(state.nS<2)return;

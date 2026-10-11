@@ -76,7 +76,7 @@ function resplitEvents(events, bt) {
           last.n.forEach((n, j) => {
             if (e.n[j] && e.n[j].t) n.t = 1;
           });
-          ["dy", "st", "ac", "sl"].forEach((f) => {
+          ["dy", "st", "ac", "sl", "mk", "pd", "pu"].forEach((f) => {
             if (e[f]) pcs[0][f] = e[f];
           });
           if (e.se) last.se = 1;
@@ -128,6 +128,43 @@ function flattenNotes(events) {
   });
   return out;
 }
+function pedalSpans(events) {
+  // intervalli [giù, su) del pedale di risonanza, in tick
+  let t = 0,
+    open = null;
+  const spans = [];
+  for (const e of events) {
+    const tk = evTicks(e);
+    if (!e.r) {
+      if (e.pd && open == null) open = t;
+      if (e.pu && open != null) {
+        spans.push([open, t + tk]);
+        open = null;
+      }
+    }
+    t += tk;
+  }
+  if (open != null) spans.push([open, t]);
+  return spans;
+}
+function applySwing(notes, beatTicks) {
+  // ritarda leggermente il secondo ottavo di ogni battito (swing approssimato, solo per l'ascolto)
+  const shift = beatTicks / 6;
+  return notes.map((n) => {
+    const pos = ((n.s % beatTicks) + beatTicks) % beatTicks;
+    if (Math.abs(pos - beatTicks / 2) < 1)
+      return { ...n, s: n.s + shift, l: Math.max(30, n.l - shift) };
+    return n;
+  });
+}
+function applyPedal(notes, spans) {
+  // mentre il pedale è giù, le note suonate continuano a risuonare fino al rilascio
+  if (!spans.length) return notes;
+  return notes.map((n) => {
+    const sp = spans.find(([a, b]) => n.s >= a && n.s < b);
+    return sp ? { ...n, l: Math.max(n.l, sp[1] - n.s) } : n;
+  });
+}
 const totalTicks = (events) => events.reduce((a, e) => a + evTicks(e), 0);
 function cleanEvents(a) {
   // legge anche i progetti della versione precedente (una nota per figura)
@@ -161,6 +198,9 @@ function cleanEvents(a) {
       if (e.ac) x.ac = 1;
       if (e.sl) x.sl = 1;
       if (e.se) x.se = 1;
+      if (typeof e.mk === "string" && /^[A-Za-z0-9]{1,2}$/.test(e.mk)) x.mk = e.mk;
+      if (e.pd) x.pd = 1;
+      if (e.pu) x.pu = 1;
       out.push(x);
     }
   }

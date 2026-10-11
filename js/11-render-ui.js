@@ -2,9 +2,9 @@
 /* ---------- 9. Disegno e interfaccia ---------- */
 let lay=null,svgEl=null,ghost=null;
 function render(){
-  const box=$('score'),W=Math.max(300,Math.floor(box.clientWidth||900)),S=W<520?10:12;
+  const box=$('score'),W=Math.max(300,Math.floor(box.clientWidth||900)),S=(W<520?10:12)*(state.zoom||1);
   lay=buildLayout(state.staves,{width:W,S,meter:state.meter,key:state.key,nS:state.nS,as:state.as,cur:state.cur});
-  box.innerHTML=renderSVG(state.staves,lay,{meter:state.meter,as:state.as,sel:state.sel,selEnd:state.selEnd,selN:state.selN});
+  box.innerHTML=renderSVG(state.staves,lay,{meter:state.meter,as:state.as,sel:state.sel,selEnd:state.selEnd,selN:state.selN,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors});
   svgEl=box.firstElementChild;ghost=svgEl.querySelector('#ghost');
   applyPlayClass();updateChrome();save();updatePop();
   if(document.body.classList.contains('mob')&&!play.on)ensureVisible(svgEl.querySelector('.ev.sel')||svgEl.querySelector('.caret'));
@@ -40,7 +40,17 @@ function updateChrome(){
   $('btnRest').textContent=se?t('palette.restAfter'):t('palette.rest');
   if($('title').value!==state.title)$('title').value=state.title;
   $('key').value=String(state.key);$('meter').value=state.meter;$('inst').value=state.inst;$('nS').value=String(state.nS);
+  $('zoom').value=String(Math.round((state.zoom||1)*100));
+  $('measureNumEvery').value=String(state.measureNumEvery||0);
+  $('noteNames').checked=!!state.noteNames;$('noteColors').checked=!!state.noteColors;$('staffColors').checked=!!state.staffColors;
   $('clef0').value=state.staves[0].clef;$('clef1').value=state.staves[1].clef;$('clef1f').hidden=state.nS<2;
+  $('mix1f').hidden=state.nS<2;
+  $('playbackRate').value=String(Math.round((state.playbackRate||1)*100));$('playbackRateLabel').textContent=Math.round((state.playbackRate||1)*100)+'%';
+  $('loopSel').checked=!!state.loopSel;$('swing').checked=!!state.swing;
+  [0,1].forEach(k=>{
+    const m=state.staveMix[k]||{mute:false,solo:false,vol:1};
+    $('solo'+k).checked=!!m.solo;$('mute'+k).checked=!!m.mute;$('vol'+k).value=String(Math.round((m.vol??1)*100));
+  });
   $('bpm').value=state.bpm;$('bpmRange').value=state.bpm;$('term').textContent=tempoTerm(state.bpm);
   $('tmark').innerHTML=`<span>${tempoTerm(state.bpm)}</span>${noteIcon('q')}<b>= ${state.bpm}</b>`;
   $('octLabel').textContent=t('keys.octLabel',{a:state.kbOct,b:state.kbOct+1});
@@ -62,6 +72,12 @@ function buildStatic(){
   $('pcLayout').innerHTML=`<option value="tracker">${t('keys.pcLayoutTracker')}</option><option value="center">${t('keys.pcLayoutCenter')}</option>`;
   $('qGrid').innerHTML=QUANT_GRID.map(g=>`<option value="${g.ticks}"${g.ticks===120?' selected':''}>${durNameFor(g.id)} (${g.frac})</option>`).join('');
   $('quant').innerHTML=QUANT_GRID.map(g=>`<option value="${g.ticks}"${g.ticks===120?' selected':''}>${durNameFor(g.id)} (${g.frac})</option>`).join('');
+  const noteOpts=(()=>{const L=LETTERS[curLang]||LETTERS.it,out=[];for(let l=0;l<7;l++)for(const a of[0,1,-1])out.push(`<option value="${l},${a}">${L[l]}${accSym(a)}</option>`);return out.join('')})();
+  $('xFromNote').innerHTML=noteOpts;$('xToNote').innerHTML=noteOpts;
+  $('tplSel').innerHTML=TEMPLATES.map(tp=>`<option value="${tp.id}">${t('files.tpl.'+tp.id)}</option>`).join('');
+  $('themeSel').innerHTML=`<option value="system">${t('app.themeSystem')}</option><option value="light">${t('app.themeLight')}</option><option value="dark">${t('app.themeDark')}</option>`;
+  $('themeSel').value=(()=>{try{return localStorage.getItem('quaderno-musica-theme')||'system'}catch(_){return'system'}})();
+  $('measureNumEvery').innerHTML=[0,1,2,4,8].map(n=>`<option value="${n}">${n===0?t('settings.measureNumOff'):n===1?t('settings.measureNumEach'):t('settings.measureNumN',{n})}</option>`).join('');
   drawPlayBtn();
 }
 const QUANT_GRID=DURS.map(d=>({id:d.id,ticks:d.ticks,frac:d.frac}));

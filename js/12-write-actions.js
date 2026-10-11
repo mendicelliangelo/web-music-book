@@ -142,9 +142,24 @@ function toggleSlur(){
   if(a.sl&&b.se){delete a.sl;delete b.se}else{a.sl=1;b.se=1}
   render();
 }
+function togglePedal(){
+  const r=selRange();if(!r||r[1]===r[0]){toast(t('t.selectMoreForSlur'));return}
+  const ns=[];for(let i=r[0];i<=r[1];i++)if(!EV()[i].r)ns.push(EV()[i]);
+  if(ns.length<2){toast(t('t.needTwoNotes'));return}
+  stopPlay();rec();const a=ns[0],b=ns[ns.length-1];
+  if(a.pd&&b.pu){delete a.pd;delete b.pu}else{a.pd=1;b.pu=1}
+  render();
+}
 function clearMarks(){
   const mk=markTargets();if(!mk.length)return;
-  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se});render();
+  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se;delete e.pd;delete e.pu});render();
+}
+function setRehearsalMark(letter){
+  const mk=(letter||'').replace(/[^A-Za-z0-9]/g,'').slice(0,2);
+  const mkTargets=markTargets();if(!mkTargets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=mkTargets[0];
+  if(!mk||f.mk===mk)delete f.mk;else f.mk=mk;
+  render();
 }
 function selectAll(){const n=EV().length;if(!n)return;stopPlay();state.sel=0;state.selEnd=n-1;state.selN=-1;state.cur=n;render()}
 const idxAtTick=(ev,tk)=>{let a=0,i=0;while(i<ev.length&&a<tk){a+=evTicks(ev[i]);i++}return i};
@@ -169,6 +184,24 @@ function pasteClip(){
   state.cur=idxAtTick(EV(),endT);state.sel=-1;state.selEnd=-1;state.selN=-1;render();
 }
 function toggleOver(){state.tool.over=!state.tool.over;updateChrome();toast(state.tool.over?t('t.overOn'):t('t.overOff'))}
+function repeatMeasure(){
+  // senza selezione: duplica l'ultima battuta del pentagramma attivo; con selezione: duplica quella
+  const ev=EV(),r=isRange()?selRange():null;
+  let from,to;
+  if(r){[from,to]=r}
+  else{
+    if(!ev.length){toast(t('t.emptySheet'));return}
+    const an=analyze(ev,btNow()),lastM=an.items[ev.length-1].m;
+    from=an.items.findIndex(it=>it.m===lastM);to=ev.length-1;
+  }
+  const part=ev.slice(from,to+1);if(!part.length)return;
+  if(ev.length+part.length>MAXEV){toast(t('t.tooLong'));return}
+  stopPlay();rec();
+  const copy=JSON.parse(JSON.stringify(part));
+  ev.splice(to+1,0,...copy);
+  state.cur=to+1+copy.length;state.sel=to+1;state.selEnd=state.cur-1;state.selN=-1;
+  render();toast(t('t.repeated',{n:copy.length,figWord:plural(copy.length,t('sheet.figure'),t('sheet.figures'))}));
+}
 function fixBars(){
   let any=false;
   const before=snap();

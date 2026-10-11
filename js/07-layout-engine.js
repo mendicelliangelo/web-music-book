@@ -2,14 +2,15 @@
 /* ---------- 6. Impaginazione e disegno del pentagramma ---------- */
 const f1 = (n) => Math.round(n * 100) / 100;
 const tf = (x, y, k) => `translate(${f1(x)} ${f1(y)}) scale(${k.toFixed(4)})`;
-function headSVG(cx, cy, v, S) {
+function headSVG(cx, cy, v, S, color) {
   const c = `cx="${f1(cx)}" cy="${f1(cy)}"`,
-    rot = `transform="rotate(-22 ${f1(cx)} ${f1(cy)})"`;
+    rot = `transform="rotate(-22 ${f1(cx)} ${f1(cy)})"`,
+    col = color || "currentColor";
   if (v === "w")
-    return `<ellipse ${c} rx="${f1(S * 0.78)}" ry="${f1(S * 0.46)}" fill="none" stroke="currentColor" stroke-width="${f1(S * 0.2)}"/>`;
+    return `<ellipse ${c} rx="${f1(S * 0.78)}" ry="${f1(S * 0.46)}" fill="none" stroke="${col}" stroke-width="${f1(S * 0.2)}"/>`;
   if (v === "h")
-    return `<ellipse ${c} rx="${f1(S * 0.6)}" ry="${f1(S * 0.42)}" fill="none" stroke="currentColor" stroke-width="${f1(S * 0.15)}" ${rot}/>`;
-  return `<ellipse ${c} rx="${f1(S * 0.62)}" ry="${f1(S * 0.44)}" fill="currentColor" ${rot}/>`;
+    return `<ellipse ${c} rx="${f1(S * 0.6)}" ry="${f1(S * 0.42)}" fill="none" stroke="${col}" stroke-width="${f1(S * 0.15)}" ${rot}/>`;
+  return `<ellipse ${c} rx="${f1(S * 0.62)}" ry="${f1(S * 0.44)}" fill="${col}" ${rot}/>`;
 }
 const FLAGS = { q: 0, h: 0, e: 1, s: 2, t: 3 };
 const STEM_LEN = [3.5, 3.5, 3.9, 4.6];
@@ -537,7 +538,22 @@ function staffSVG(k, sy, si, L, st, pts) {
             S,
           ).svg;
         }
-        g += headSVG(r.hx[j], r.ys[j], e.v, S);
+        g += headSVG(
+          r.hx[j],
+          r.ys[j],
+          e.v,
+          S,
+          st.noteColors
+            ? NOTE_COLORS[n.d % 7]
+            : st.staffColors
+              ? STAFF_COLORS[k]
+              : null,
+        );
+        if (st.noteNames) {
+          const L = LETTERS.en,
+            label = L[n.d % 7] + (n.a > 0 ? "♯" : n.a < 0 ? "♭" : "");
+          g += `<text class="notename" x="${f1(r.hx[j])}" y="${f1(r.ys[j] + S * 1.9)}" font-size="${f1(S * 1.05)}" text-anchor="middle">${label}</text>`;
+        }
         if (e.dot)
           g += `<circle cx="${f1(c.cx + S * 0.95 + (gg.dispR ? S * 1.1 : 0))}" cy="${f1(gg.pos[j] % 2 === 0 ? r.ys[j] - H : r.ys[j])}" r="${f1(S * 0.17)}" fill="currentColor"/>`;
         if (sel && single && st.selN === j && kk > 1)
@@ -644,6 +660,14 @@ function renderSVG(staves, L, st) {
       if (c.bar)
         for (let k = 0; k < nS; k++)
           o += `<path class="bl" d="M${f1(c.barX)} ${f1(sy.staff[k].yTop)}V${f1(sy.staff[k].yBot)}"/>`;
+    if (st.measureNumEvery && sy.items.length) {
+      const yN = f1(sy.staff[0].yTop - S * 1.1);
+      if (sy.items[0].m % st.measureNumEvery === 0)
+        o += `<text class="mnum" x="${f1(sy.x0)}" y="${yN}" font-size="${f1(1.6 * S)}">${sy.items[0].m + 1}</text>`;
+      for (const c of sy.items)
+        if (c.bar && c.m % st.measureNumEvery === 0)
+          o += `<text class="mnum" x="${f1(c.x)}" y="${yN}" font-size="${f1(1.6 * S)}">${c.m + 1}</text>`;
+    }
     for (let k = 0; k < nS; k++) o += staffSVG(k, sy, si, L, st, pts);
     if (sy.endBar)
       for (let k = 0; k < nS; k++)
@@ -720,6 +744,30 @@ function renderSVG(staves, L, st) {
           ex = dir === 1 ? Math.max(...ys) : Math.min(...ys);
         o += slurSVG(x1, ext(g.q[0]), x2, ext(g.q[g.q.length - 1]), ex, dir, S);
       });
+    });
+  }
+  for (let k = 0; k < nS; k++) {
+    staves[k].events.forEach((e, i) => {
+      if (!e.pd && !e.pu) return;
+      const p = pts[k][i];
+      if (!p) return;
+      const yL = L.systems[p.sys].staff[k].yBot + S * 2.4;
+      if (e.pd)
+        o += `<text class="ped" x="${f1(p.hx[0])}" y="${f1(yL)}" font-size="${f1(1.5 * S)}">Ped.</text>`;
+      if (e.pu)
+        o += `<text class="ped" x="${f1(p.hx[0])}" y="${f1(yL)}" font-size="${f1(1.8 * S)}">*</text>`;
+    });
+  }
+  for (let k = 0; k < nS; k++) {
+    staves[k].events.forEach((e, i) => {
+      if (!e.mk) return;
+      const p = pts[k][i];
+      if (!p) return;
+      const mk = String(e.mk).replace(/[^A-Za-z0-9]/g, "");
+      if (!mk) return;
+      const x = p.hx[0],
+        y = Math.min(...p.ys) - S * 3.2;
+      o += `<text class="rehearsal" x="${f1(x)}" y="${f1(y)}" font-size="${f1(3 * S)}">${mk}</text>`;
     });
   }
   if (st.showCaret !== false) {

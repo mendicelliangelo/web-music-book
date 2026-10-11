@@ -58,11 +58,31 @@ function startPlay(){
   if(!ac){toast(t('t.noAudio'));return}
   if(!visible().some(s=>s.events.length)){toast(t('t.writeFirst'));return}
   stopPlay();if(recS.on)stopRec();
-  const spt=60/(state.bpm*PPQ),notes=[];
-  play.starts=visible().map(s=>{let t=0;return s.events.map(e=>{const x=t;t+=evTicks(e);return x})});
-  visible().forEach(s=>flattenNotes(s.events).forEach(n=>notes.push(n)));
+  const spt=60/(state.bpm*PPQ)/(state.playbackRate||1);
+  let notes=[];
+  let starts=visible().map(s=>{let t=0;return s.events.map(e=>{const x=t;t+=evTicks(e);return x})});
+  const mix=state.staveMix||[],anySolo=mix.some(m=>m&&m.solo);
+  visible().forEach((s,k)=>{
+    const m=mix[k]||{mute:false,solo:false,vol:1};
+    if(m.mute||(anySolo&&!m.solo))return;
+    const vol=m.vol==null?1:m.vol;
+    let staffNotes=applyPedal(flattenNotes(s.events),pedalSpans(s.events));
+    if(state.swing)staffNotes=applySwing(staffNotes,beatTicksOf(state.meter));
+    staffNotes.forEach(n=>notes.push({...n,v:Math.max(0,Math.min(127,Math.round(n.v*vol))),k}));
+  });
   notes.sort((a,b)=>a.s-b.s);
-  Object.assign(play,{on:true,t0:ac.currentTime+.15,spt,notes,idx:0,cur:visible().map(()=>-1),total:maxTotal()});
+  let total=maxTotal(),loop=false,loopStart=0;
+  if(state.loopSel&&isRange()){
+    const r=selRange(),ev=EV();
+    loopStart=ticksBefore(ev,r[0]);const loopEnd=ticksBefore(ev,r[1]+1);
+    if(loopEnd>loopStart){
+      notes=notes.filter(n=>n.s<loopEnd&&n.s+n.l>loopStart).map(n=>({...n,s:n.s-loopStart}));
+      starts=starts.map(arr=>arr.map(x=>x-loopStart));
+      total=loopEnd-loopStart;loop=true;
+    }
+  }
+  play.starts=starts;
+  Object.assign(play,{on:true,t0:ac.currentTime+.15,spt,notes,idx:0,cur:visible().map(()=>-1),total,loop,loopStart});
   const inst=instOf();
   const pump=()=>{
     while(play.idx<play.notes.length&&play.t0+play.notes[play.idx].s*spt<ac.currentTime+1.5){
@@ -72,15 +92,18 @@ function startPlay(){
   pump();play.timer=setInterval(pump,100);
   const frame=()=>{
     if(!play.on)return;
-    const nowT=(ac.currentTime-play.t0)/spt;
-    if(nowT>=play.total+PPQ){stopPlay();return}
+    let nowT=(ac.currentTime-play.t0)/spt;
+    if(nowT>=play.total+(play.loop?0:PPQ)){
+      if(play.loop){play.t0+=play.total*spt;play.idx=0;nowT=0}
+      else{stopPlay();return}
+    }
     let changed=false;
     play.starts.forEach((st,k)=>{
       let j=-1;if(nowT<play.total)for(let q=0;q<st.length;q++){if(st[q]<=nowT)j=q;else break}
       if(j!==play.cur[k]){play.cur[k]=j;changed=true}
     });
     if(changed)applyPlayClass(true);
-    updateClock(nowT);
+    updateClock(nowT+(play.loop?play.loopStart:0));
     play.raf=requestAnimationFrame(frame);
   };
   play.raf=requestAnimationFrame(frame);

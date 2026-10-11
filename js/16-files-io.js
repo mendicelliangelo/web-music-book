@@ -9,7 +9,7 @@ const errMsg=code=>t(ERR_T[code]||'t.fileUnreadable');
 const dlReady=(()=>{try{return window.claude&&window.claude.use?Promise.resolve(window.claude.use('downloads')).catch(()=>null):Promise.resolve(null)}catch(_){return Promise.resolve(null)}})();
 function anchorSave(filename,data){                // ultima possibilità: download del browser (può essere bloccato dalla vista)
   try{
-    const blob=new Blob([data],{type:/\.pdf$/.test(filename)?'application/pdf':/\.json$/.test(filename)?'application/json':'application/zip'});
+    const blob=new Blob([data],{type:/\.pdf$/.test(filename)?'application/pdf':/\.json$/.test(filename)?'application/json':/\.png$/.test(filename)?'image/png':/\.svg$/.test(filename)?'image/svg+xml':'application/zip'});
     const url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);return true;
@@ -40,6 +40,42 @@ $('btnPdf').addEventListener('click',async()=>{
   if(!visible().some(s=>s.events.length)){toast(t('t.emptySheet'));return}
   const pdf=buildPdf(visible(),{meter:state.meter,key:state.key,nS:state.nS,bpm:state.bpm,title:state.title});
   await saveFile((slugify(state.title)||'brano')+'.pdf',pdf);
+});
+$('btnExportImg').addEventListener('click',async()=>{
+  stopPlay();if(recS.on)stopRec();
+  if(!svgEl||!visible().some(s=>s.events.length)){toast(t('t.emptySheet'));return}
+  const svgNS='http://www.w3.org/2000/svg';
+  const totalW=parseFloat(svgEl.getAttribute('width'))||0,totalH=parseFloat(svgEl.getAttribute('height'))||0;
+  const selEls=[...svgEl.querySelectorAll('.ev.sel')];
+  let vb=[0,0,totalW,totalH];
+  if(selEls.length){
+    const boxes=selEls.map(el=>el.getBBox());
+    const minX=Math.min(...boxes.map(b=>b.x)),minY=Math.min(...boxes.map(b=>b.y));
+    const maxX=Math.max(...boxes.map(b=>b.x+b.width)),maxY=Math.max(...boxes.map(b=>b.y+b.height));
+    const pad=10;
+    vb=[Math.max(0,minX-pad),Math.max(0,minY-pad),Math.min(totalW,maxX-minX+pad*2),Math.min(totalH,maxY-minY+pad*2)];
+  }
+  const clone=svgEl.cloneNode(true);
+  clone.querySelectorAll('.caret,#ghost').forEach(el=>el.remove());
+  clone.setAttribute('viewBox',vb.join(' '));
+  clone.setAttribute('width',String(Math.round(vb[2])));
+  clone.setAttribute('height',String(Math.round(vb[3])));
+  const bg=document.createElementNS(svgNS,'rect');
+  bg.setAttribute('x',String(vb[0]));bg.setAttribute('y',String(vb[1]));bg.setAttribute('width',String(vb[2]));bg.setAttribute('height',String(vb[3]));bg.setAttribute('fill','#fff');
+  clone.insertBefore(bg,clone.firstChild);
+  const svgStr=new XMLSerializer().serializeToString(clone);
+  const url=URL.createObjectURL(new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'}));
+  try{
+    const img=new Image();
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url});
+    const scale=2,canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(vb[2]*scale));canvas.height=Math.max(1,Math.round(vb[3]*scale));
+    const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.drawImage(img,0,0,vb[2],vb[3]);
+    const pngBlob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const slug=slugify(state.title)||'brano';
+    await saveFile(slug+(selEls.length?'-selezione':'')+'.png',pngBlob);
+  }catch(_){toast(t('t.fileUnreadable'))}
+  finally{URL.revokeObjectURL(url)}
 });
 $('btnSaveJson').addEventListener('click',async()=>{
   const slug=slugify(state.title)||'brano';
@@ -98,3 +134,50 @@ $('btnNew').addEventListener('click',()=>{
   state.staves.forEach(s=>{s.events=[]});state.cur=0;state.sel=-1;state.selN=-1;state.as=0;state.title=t('sheet.untitled');render();
   toast(t('t.emptySheetUndo'));
 });
+const TEMPLATES=[
+  {id:'piano',nS:2,clef0:'treble',clef1:'bass',inst:'piano'},
+  {id:'voice',nS:2,clef0:'treble',clef1:'bass',inst:'piano'},
+  {id:'solo',nS:1,clef0:'treble',clef1:'bass',inst:'violin'},
+];
+function newFromTemplate(id){
+  const tpl=TEMPLATES.find(x=>x.id===id);if(!tpl)return;
+  stopPlay();if(recS.on)stopRec();resetHistory();
+  state.staves=[{clef:tpl.clef0,events:[]},{clef:tpl.clef1,events:[]}];
+  state.nS=tpl.nS;state.inst=tpl.inst;state.key=0;state.meter='4/4';state.bpm=108;
+  state.as=0;state.cur=0;state.sel=-1;state.selEnd=-1;state.selN=-1;state.title=t('sheet.untitled');
+  state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildKeys();render();
+  toast(t('t.templateLoaded',{name:t('files.tpl.'+id)}));
+}
+$('btnTemplate').addEventListener('click',()=>newFromTemplate($('tplSel').value));
+const escHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const VER_STORE='quaderno-musica-versions';
+function loadVersions(){try{const a=JSON.parse(localStorage.getItem(VER_STORE)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
+function saveVersionsList(list){try{localStorage.setItem(VER_STORE,JSON.stringify(list))}catch(_){}}
+function refreshVersionsUI(){
+  const list=loadVersions();
+  $('verSel').innerHTML=list.length?list.map((v,i)=>`<option value="${i}">${escHtml(v.title||t('sheet.untitled'))} · ${escHtml(new Date(v.ts).toLocaleString())}</option>`).join(''):`<option value="">${t('files.noVersions')}</option>`;
+  $('btnRestoreVersion').disabled=!list.length;$('btnDeleteVersion').disabled=!list.length;
+}
+function saveVersion(){
+  const list=loadVersions();
+  list.push({ts:Date.now(),title:state.title,data:{title:state.title,meter:state.meter,bpm:state.bpm,inst:state.inst,key:state.key,nS:state.nS,zoom:state.zoom,staves:state.staves}});
+  if(list.length>20)list.splice(0,list.length-20);
+  saveVersionsList(list);refreshVersionsUI();$('verSel').value=String(list.length-1);
+  toast(t('t.versionSaved'));
+}
+function restoreVersion(){
+  const list=loadVersions(),v=list[+$('verSel').value];if(!v)return;
+  stopPlay();if(recS.on)stopRec();resetHistory();
+  applySettings(v.data);applyStaves(v.data.staves);
+  state.as=0;state.cur=state.staves[0].events.length;state.sel=-1;state.selEnd=-1;state.selN=-1;
+  state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildKeys();render();
+  toast(t('t.versionRestored',{name:v.title||t('sheet.untitled')}));
+}
+function deleteVersion(){
+  const list=loadVersions(),i=+$('verSel').value;if(!list[i])return;
+  list.splice(i,1);saveVersionsList(list);refreshVersionsUI();
+}
+$('btnSaveVersion').addEventListener('click',saveVersion);
+$('btnRestoreVersion').addEventListener('click',restoreVersion);
+$('btnDeleteVersion').addEventListener('click',deleteVersion);
+refreshVersionsUI();

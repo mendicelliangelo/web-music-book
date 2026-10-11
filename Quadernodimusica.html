@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/responsive.css">
+<script>(function(){try{var th=localStorage.getItem('quaderno-musica-theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th)}catch(_){}})();</script>
 </head><body>
 
 <div class="splash" id="splash">
@@ -23,6 +24,9 @@
         <select id="lang" aria-label="Lingua">
           <option value="it">Italiano</option><option value="en">English</option><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="pl">Polski</option>
         </select>
+      </label>
+      <label class="field"><span class="vh" data-i18n="app.theme">Tema</span>
+        <select id="themeSel" aria-label="Tema" data-i18n-aria="app.theme"></select>
       </label>
     </div>
   </header>
@@ -49,7 +53,10 @@
             <button class="tool" id="btnStac" type="button" aria-pressed="false" data-i18n="dyn.stac" data-i18n-title="dyn.stacTitle" title="Staccato: la nota dura la metà (tasto S)">Staccato</button>
             <button class="tool" id="btnAcc" type="button" aria-pressed="false" data-i18n="dyn.acc" data-i18n-title="dyn.accTitle" title="Accento: la nota suona più forte (tasto &gt;)">Accento</button>
             <button class="tool" id="btnSlur" type="button" data-i18n="dyn.slur" data-i18n-title="dyn.slurTitle" title="Legatura di frase sulle figure selezionate (tasto L)">Legatura di frase</button>
+            <button class="tool" id="btnPedal" type="button" data-i18n="dyn.pedal" data-i18n-title="dyn.pedalTitle" title="Pedale di risonanza dalla prima all'ultima figura selezionata">Pedale</button>
             <button class="tool" id="btnClearMk" type="button" data-i18n="dyn.clearMk" data-i18n-title="dyn.clearMkTitle" title="Toglie dinamica, staccato, accento e legature di frase">Togli segni</button>
+            <input type="text" id="rehLetter" maxlength="2" size="2" placeholder="A" aria-label="Lettera di richiamo" data-i18n-aria="dyn.rehearsalLabel" style="width:3em">
+            <button class="tool" id="btnRehearsal" type="button" data-i18n="dyn.rehearsalBtn" data-i18n-title="dyn.rehearsalBtnTitle" title="Aggiunge o togli una lettera di richiamo sopra la prima figura della selezione (o quella prima del cursore)">Lettera di richiamo</button>
           </div>
         </div>
         <div class="group">
@@ -59,6 +66,7 @@
             <button class="tool" id="btnCopy" type="button" data-i18n="dyn.copy" data-i18n-title="dyn.copyTitle" title="Copia (Ctrl+C)">Copia</button>
             <button class="tool" id="btnCut" type="button" data-i18n="dyn.cut" data-i18n-title="dyn.cutTitle" title="Taglia (Ctrl+X)">Taglia</button>
             <button class="tool" id="btnPaste" type="button" data-i18n="dyn.paste" data-i18n-title="dyn.pasteTitle" title="Incolla al cursore (Ctrl+V)">Incolla</button>
+            <button class="tool" id="btnRepeatBar" type="button" data-i18n="dyn.repeatBar" data-i18n-title="dyn.repeatBarTitle" title="Duplica la selezione, o l'ultima battuta se non c'è selezione">Ripeti battuta</button>
           </div>
           <p class="hint" data-i18n="dyn.selHelp">Clicca una nota per selezionarla, poi Shift+clic (o Shift+freccia) su un'altra per estendere la selezione a un gruppo. Poi usa questi pulsanti o Ctrl+C / Ctrl+X / Ctrl+V.</p>
         </div>
@@ -90,14 +98,34 @@
             <button class="tool" id="xHalf" type="button" data-i18n="xform.half" data-i18n-title="xform.halfTitle" title="Ogni figura diventa lunga la metà (la minima diventa semiminima)">Dimezza (÷2)</button>
           </div>
         </div>
+        <div class="group">
+          <span class="glabel" data-i18n="xform.replaceTitle">Cerca e sostituisci (tutto, o la selezione)</span>
+          <div class="tools">
+            <select id="xFromNote" data-i18n-aria="xform.replaceFrom" aria-label="Cerca questa nota"></select>
+            <span aria-hidden="true">→</span>
+            <select id="xToNote" data-i18n-aria="xform.replaceTo" aria-label="Sostituisci con"></select>
+            <button class="tool" id="xReplace" type="button" data-i18n="xform.replaceBtn">Sostituisci</button>
+          </div>
+        </div>
       </section>
 
       <section class="files" aria-label="File" data-i18n-aria="aria.files">
         <button class="btn primary" id="btnExport" type="button" data-i18n="files.exportMidi">Scarica MIDI</button>
         <button class="btn" id="btnPdf" type="button" data-i18n="files.exportPdf">Scarica PDF</button>
+        <button class="btn" id="btnExportImg" type="button" data-i18n="files.exportImg" data-i18n-title="files.exportImgTitle" title="Esporta un'immagine PNG: tutto lo spartito, o solo la selezione se ce n'è una">Esporta immagine</button>
         <button class="btn" id="btnSaveJson" type="button" data-i18n="files.saveJson">Salva progetto</button>
         <button class="btn" id="btnLoad" type="button" data-i18n="files.loadMidi">Carica MIDI</button>
         <button class="btn" id="btnNew" type="button" data-i18n="files.newSheet">Nuovo spartito</button>
+        <label class="field tpl-ctl"><span class="vh" data-i18n="files.templateLabel">Modello di partenza</span>
+          <select id="tplSel" aria-label="Modello di partenza" data-i18n-aria="files.templateLabel"></select>
+        </label>
+        <button class="btn" id="btnTemplate" type="button" data-i18n="files.templateBtn">Nuovo da modello</button>
+        <label class="field tpl-ctl"><span class="vh" data-i18n="files.versionsLabel">Versioni salvate</span>
+          <select id="verSel" aria-label="Versioni salvate" data-i18n-aria="files.versionsLabel"></select>
+        </label>
+        <button class="btn" id="btnSaveVersion" type="button" data-i18n="files.saveVersion">Salva versione</button>
+        <button class="btn" id="btnRestoreVersion" type="button" data-i18n="files.restoreVersion">Ripristina versione</button>
+        <button class="btn" id="btnDeleteVersion" type="button" data-i18n="files.deleteVersion">Elimina versione</button>
         <input id="fileIn" class="vh" type="file" accept=".mid,.midi,.zip,.json,audio/midi,application/json,application/zip" tabindex="-1">
         <p data-i18n="files.help">Il PDF è una pagina A4 da stampare, con titolo, numeri di battuta e dinamiche. Per caricare un MIDI scegli il file con il pulsante o trascinalo sullo spartito: le note appaiono sul pentagramma, con tempo, metro, armatura e strumento del file. Il MIDI che scarichi arriva dentro un archivio ZIP (questa pagina non può salvare direttamente file .mid): estrailo per usarlo altrove, oppure ricarica qui lo ZIP così com'è.</p>
       </section>
@@ -107,6 +135,9 @@
       <section class="sheet" aria-label="Spartito" data-i18n-aria="aria.sheet">
         <div class="sheet-head">
           <input class="title-input" id="title" type="text" maxlength="60" placeholder="Titolo del brano" aria-label="Titolo del brano" data-i18n-ph="sheet.titlePh" data-i18n-aria="sheet.titlePh">
+          <label class="field zoom-ctl"><span data-i18n="sheet.zoom">Zoom</span>
+            <input type="range" id="zoom" min="70" max="200" step="10" value="100" aria-label="Zoom" data-i18n-aria="sheet.zoom">
+          </label>
           <div class="tmark" id="tmark"></div>
         </div>
         <div id="score"></div>
@@ -133,7 +164,7 @@
           <label class="field"><span data-i18n="keys.quantLabel">Tastiera: quantizza a</span>
             <select id="quant" data-i18n-title="keys.quantTitle" title="Vale per “Registra” e per “Durata dal tocco”"></select>
           </label>
-          <button class="btn" id="btnMidi" type="button" data-i18n="keys.midiBtn">Collega tastiera MIDI</button>
+          <button class="btn" id="btnMidi" type="button" data-i18n="keys.midiBtn" data-i18n-title="keys.midiBtnTitle" title="Finché non premi Registra o Durata dal tocco, ogni nota (o accordo) che suoni si scrive subito al cursore con la durata scelta e il cursore avanza da solo: è l'inserimento a passo.">Collega tastiera MIDI</button>
           <button class="btn" id="btnTimed" type="button" aria-pressed="false" data-i18n="keys.timedBtn" data-i18n-title="keys.timedTitle" title="Quanto tieni premuto un tasto decide la durata della nota">Durata dal tocco</button>
           <button class="btn" id="btnPc" type="button" aria-pressed="false" data-i18n="keys.pcBtn" data-i18n-title="keys.pcTitle" title="Le lettere indicate sui tasti suonano il pianoforte dalla tastiera del computer">Tastiera del PC</button>
           <select id="pcLayout" aria-label="Disposizione dei tasti del computer" data-i18n-title="keys.pcLayoutTitle" title="Disposizione dei tasti del computer"></select>
@@ -163,6 +194,32 @@
           </div>
         </div>
         <label class="field"><span data-i18n="settings.instrument">Strumento</span><select id="inst"></select></label>
+        <label class="field"><span data-i18n="settings.measureNum">Numeri di battuta</span><select id="measureNumEvery"></select></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="noteNames"><span data-i18n="settings.noteNames">Nomi sulle note</span></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="noteColors"><span data-i18n="settings.noteColors">Colori per nota</span></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="staffColors"><span data-i18n="settings.staffColors">Colori per pentagramma</span></label>
+        <label class="field zoom-ctl"><span data-i18n="settings.playbackRate">Velocità di riproduzione</span>
+          <input type="range" id="playbackRate" min="50" max="100" step="5" value="100" aria-label="Velocità di riproduzione" data-i18n-aria="settings.playbackRate">
+          <span id="playbackRateLabel">100%</span>
+        </label>
+        <label class="field tpl-ctl"><input type="checkbox" id="loopSel"><span data-i18n="settings.loopSel">Riproduzione ciclica della selezione</span></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="swing"><span data-i18n="settings.swing">Swing (solo in ascolto)</span></label>
+        <div class="field mixrow">
+          <span data-i18n="settings.mix0">Pentagramma 1 · solo, muto, volume</span>
+          <div class="tools">
+            <label class="tpl-ctl"><input type="checkbox" id="solo0"><span data-i18n="settings.solo">Solo</span></label>
+            <label class="tpl-ctl"><input type="checkbox" id="mute0"><span data-i18n="settings.mute">Muto</span></label>
+            <input type="range" id="vol0" min="0" max="100" step="10" value="100" aria-label="Volume pentagramma 1" data-i18n-aria="settings.mix0">
+          </div>
+        </div>
+        <div class="field mixrow" id="mix1f">
+          <span data-i18n="settings.mix1">Pentagramma 2 · solo, muto, volume</span>
+          <div class="tools">
+            <label class="tpl-ctl"><input type="checkbox" id="solo1"><span data-i18n="settings.solo">Solo</span></label>
+            <label class="tpl-ctl"><input type="checkbox" id="mute1"><span data-i18n="settings.mute">Muto</span></label>
+            <input type="range" id="vol1" min="0" max="100" step="10" value="100" aria-label="Volume pentagramma 2" data-i18n-aria="settings.mix1">
+          </div>
+        </div>
       </section>
 
       <section class="palette" aria-label="Figure e alterazioni" data-i18n-aria="aria.palette">

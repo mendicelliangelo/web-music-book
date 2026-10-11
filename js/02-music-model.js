@@ -13,6 +13,16 @@ const DURS = [
 const DUR_BY = Object.fromEntries(DURS.map((d) => [d.id, d]));
 const LETTER_SEMI = [0, 2, 4, 5, 7, 9, 11]; // Do Re Mi Fa Sol La Si in semitoni sopra il Do
 const SOLFEGE = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"];
+const NOTE_COLORS = [
+  "#c73b3b",
+  "#c7703b",
+  "#b7a22a",
+  "#3f9450",
+  "#2f7fc1",
+  "#5a5ec7",
+  "#a241a8",
+]; // Do..Si, usati quando l'utente attiva i colori per nota
+const STAFF_COLORS = ["#2f7fc1", "#c7703b"]; // pentagramma 1 e 2, quando l'utente attiva i colori per pentagramma
 const METERS = ["2/4", "3/4", "4/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4"];
 const DYNS = ["pp", "p", "mp", "mf", "f", "ff"],
   DYN_VEL = { pp: 33, p: 49, mp: 64, mf: 80, f: 96, ff: 112 }; // dinamica → velocità MIDI (senza segno: 90)
@@ -146,6 +156,20 @@ const INSTRUMENTS = [
     lv: 0.9,
   },
   {
+    id: "guitar",
+    program: 24,
+    harm: [1, 0.65, 0.4, 0.25, 0.15, 0.08, 0.04],
+    a: 0.003,
+    tau: 1.3,
+    pd: 25,
+    sus: 0,
+    r: 0.1,
+    br: 8,
+    dk: 2.5,
+    ft: 0.25,
+    lv: 0.95,
+  },
+  {
     id: "flute",
     program: 73,
     harm: [1, 0.25, 0.1, 0.04],
@@ -175,6 +199,25 @@ const keyAlter = (key, L) =>
         : 0
       : 0;
 
+const tonicPC = (sf) => {
+  const row = KEY_TABLE[sf] || KEY_TABLE[0];
+  return (((LETTER_SEMI[row[0]] + row[1]) % 12) + 12) % 12;
+};
+function keyAfterTranspose(curKey, semi) {
+  // armatura più vicina (meno alterazioni) la cui tonica maggiore cade sulla stessa classe di altezza dopo il trasporto
+  const target = (((tonicPC(curKey) + semi) % 12) + 12) % 12;
+  let best = curKey;
+  for (let sf = -7; sf <= 7; sf++) {
+    if (tonicPC(sf) !== target) continue;
+    if (
+      best === curKey ||
+      Math.abs(sf) < Math.abs(best) ||
+      (Math.abs(sf) === Math.abs(best) && Math.sign(sf) === Math.sign(curKey))
+    )
+      best = sf;
+  }
+  return best;
+}
 const meterParts = (m) => {
   const [n, d] = m.split("/").map(Number);
   return { n, d };
