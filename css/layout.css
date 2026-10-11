@@ -1,0 +1,89 @@
+/* Impianto della pagina: schermata d'avvio, intestazione, due menu laterali e colonna centrale. */
+
+/* schermata d'avvio: il titolo e la descrizione, per 2 secondi, poi la pagina si apre da sola */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--ink);
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+.splash.out {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash h1 {
+  font-size: clamp(28px, 6vw, 42px);
+}
+.splash .lead {
+  max-width: 46ch;
+  font-size: 15.5px;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-top: 4px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px 14px;
+  flex-wrap: wrap;
+}
+.topbar .brand {
+  font-size: clamp(18px, 2.6vw, 24px);
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.icon-btn {
+  display: none;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr) 272px;
+  gap: 16px;
+  align-items: start;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+.side-h {
+  display: none;
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr) 240px;
+    gap: 12px;
+  }
+}

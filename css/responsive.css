@@ -1,0 +1,215 @@
+/* Versione per telefono: i due menu laterali diventano pannelli che scorrono da destra e da sinistra;
+   la carta resta fissa in alto, sotto scorre il resto, in basso la barra di ascolto. */
+@media (max-width: 760px) {
+  body {
+    padding-inline: 10px;
+  }
+  .app {
+    padding-top: 0;
+  }
+  .topbar {
+    padding: 8px 2px 6px;
+  }
+  .topbar .lead {
+    display: none;
+  }
+
+  .layout {
+    display: block;
+  }
+  .side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: min(86vw, 320px);
+    max-height: none;
+    z-index: 31;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: var(--panel);
+    box-shadow: 0 0 40px -10px var(--shadow);
+    transition: transform 0.22s;
+    overflow-y: auto;
+  }
+  .side-left {
+    left: 0;
+    transform: translateX(-105%);
+    border-right: 1px solid var(--line);
+  }
+  .side-right {
+    right: 0;
+    transform: translateX(105%);
+    border-left: 1px solid var(--line);
+  }
+  body.nav-left-open .side-left {
+    transform: none;
+  }
+  body.nav-right-open .side-right {
+    transform: none;
+  }
+  .side-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font: 700 18px/1 var(--serif);
+    margin-bottom: 4px;
+  }
+  .side-h button {
+    flex: none;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 20px;
+  }
+
+  .icon-btn {
+    display: inline-flex;
+  }
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 15, 28, 0.45);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  body.nav-left-open .scrim,
+  body.nav-right-open .scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .main {
+    gap: 10px;
+  }
+  .sheet {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    max-height: 36vh;
+    overflow: auto;
+    padding: 8px 6px 6px;
+    overscroll-behavior: contain;
+  }
+  .sheet-head {
+    padding: 0 4px 2px;
+  }
+  .title-input {
+    font-size: 20px;
+    min-height: 36px;
+    flex-basis: 140px;
+  }
+  .tmark {
+    font-size: 15px;
+  }
+  .keyhint,
+  .files p {
+    display: none;
+  }
+  .settings,
+  .xform,
+  .keys-box,
+  .files {
+    padding: 12px;
+  }
+  .durs {
+    gap: 6px;
+  }
+  .dur {
+    padding: 6px 2px;
+  }
+  .dur svg {
+    height: 36px;
+  }
+  .dur b {
+    display: none;
+  }
+  .tool,
+  .btn,
+  select,
+  input[type="number"] {
+    min-height: 46px;
+  }
+  .tool {
+    padding: 8px 12px;
+  }
+  .piano {
+    min-width: 660px;
+    height: 150px;
+  }
+  .wk {
+    font-size: 11px;
+  }
+  .keys-box {
+    gap: 10px;
+  }
+  .keys-scroll {
+    order: -2;
+  }
+  .keys-top {
+    order: -1;
+    justify-content: flex-start;
+  }
+  .keys-top .glabel {
+    display: none;
+  }
+  .recbar .field {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .recbar select,
+  .keys-top select {
+    max-width: 100%;
+  }
+
+  .pop {
+    left: 8px !important;
+    right: 8px;
+    top: auto !important;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-height: 46vh;
+    z-index: 18;
+  }
+
+  .dock {
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 12;
+    overflow-x: auto;
+  }
+  .dock .btn {
+    min-height: 46px;
+    min-width: 46px;
+    padding: 0 10px;
+    font-size: 16px;
+  }
+  #play {
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  #clock {
+    font-size: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+    line-height: 1.2;
+  }
+  #navRightBtn {
+    margin-left: auto;
+  }
+  .toast {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
+  .toast,
+  .side,
+  .scrim {
+    transition: none !important;
+  }
+}
