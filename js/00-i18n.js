@@ -1395,35 +1395,35 @@ pl:{
 }
 };
 
-const LETTERS={it:['Do','Re','Mi','Fa','Sol','La','Si'],en:['C','D','E','F','G','A','B'],fr:['Do','Ré','Mi','Fa','Sol','La','Si'],es:['Do','Re','Mi','Fa','Sol','La','Si']};
-const MAJMIN={it:['maggiore','minore'],en:['major','minor'],fr:['majeur','mineur'],es:['mayor','menor']};
+const LETTERS={it:['Do','Re','Mi','Fa','Sol','La','Si'],en:['C','D','E','F','G','A','B'],fr:['Do','Ré','Mi','Fa','Sol','La','Si'],es:['Do','Re','Mi','Fa','Sol','La','Si'],de:['C','D','E','F','G','A','H'],pl:['Do','Re','Mi','Fa','Sol','La','Si']};
+const MAJMIN={it:['maggiore','minore'],en:['major','minor'],fr:['majeur','mineur'],es:['mayor','menor'],de:['Dur','moll'],pl:['dur','moll']};
 /* per ogni armatura (-7..7): [lettera maggiore, alterazione, lettera minore, alterazione] (indici 0-6 = Do..Si) */
 const KEY_TABLE={0:[0,0,5,0],1:[4,0,2,0],2:[1,0,6,0],3:[5,0,3,1],4:[2,0,0,1],5:[6,0,4,1],6:[3,1,1,1],7:[0,1,5,1],
   '-1':[3,0,1,0],'-2':[6,-1,4,0],'-3':[2,-1,0,0],'-4':[5,-1,3,0],'-5':[1,-1,6,-1],'-6':[4,-1,2,-1],'-7':[0,-1,5,-1]};
 const CLEF_NAMES={
-  treble:{it:'Violino (Sol sulla 2ª riga)',en:'Treble (G on line 2)',fr:'Clé de sol (2ᵉ ligne)',es:'Clave de sol (2.ª línea)'},
-  soprano:{it:'Soprano (Do sulla 1ª riga)',en:'Soprano (C on line 1)',fr:'Ut 1ʳᵉ ligne (soprano)',es:'Do en 1.ª línea (soprano)'},
-  mezzo:{it:'Mezzosoprano (Do sulla 2ª riga)',en:'Mezzo-soprano (C on line 2)',fr:'Ut 2ᵉ ligne (mezzo-soprano)',es:'Do en 2.ª línea (mezzosoprano)'},
-  alto:{it:'Contralto (Do sulla 3ª riga)',en:'Alto (C on line 3)',fr:'Ut 3ᵉ ligne (alto)',es:'Do en 3.ª línea (contralto)'},
-  tenor:{it:'Tenore (Do sulla 4ª riga)',en:'Tenor (C on line 4)',fr:'Ut 4ᵉ ligne (ténor)',es:'Do en 4.ª línea (tenor)'},
-  baritone:{it:'Baritono (Fa sulla 3ª riga)',en:'Baritone (F on line 3)',fr:'Clé de fa 3ᵉ ligne (baryton)',es:'Fa en 3.ª línea (barítono)'},
-  bass:{it:'Basso (Fa sulla 4ª riga)',en:'Bass (F on line 4)',fr:'Clé de fa 4ᵉ ligne (basse)',es:'Fa en 4.ª línea (bajo)'}
+  treble:{it:'Violino (Sol sulla 2ª riga)',en:'Treble (G on line 2)',fr:'Clé de sol (2ᵉ ligne)',es:'Clave de sol (2.ª línea)',de:'Violinschlüssel (G auf Linie 2)',pl:'Klucz wiolinowy (G na 2. linii)'},
+  soprano:{it:'Soprano (Do sulla 1ª riga)',en:'Soprano (C on line 1)',fr:'Ut 1ʳᵉ ligne (soprano)',es:'Do en 1.ª línea (soprano)',de:'Sopranschlüssel (C auf Linie 1)',pl:'Klucz sopranowy (C na 1. linii)'},
+  mezzo:{it:'Mezzosoprano (Do sulla 2ª riga)',en:'Mezzo-soprano (C on line 2)',fr:'Ut 2ᵉ ligne (mezzo-soprano)',es:'Do en 2.ª línea (mezzosoprano)',de:'Mezzosopranschlüssel (C auf Linie 2)',pl:'Klucz mezzosopranowy (C na 2. linii)'},
+  alto:{it:'Contralto (Do sulla 3ª riga)',en:'Alto (C on line 3)',fr:'Ut 3ᵉ ligne (alto)',es:'Do en 3.ª línea (contralto)',de:'Altschlüssel (C auf Linie 3)',pl:'Klucz altowy (C na 3. linii)'},
+  tenor:{it:'Tenore (Do sulla 4ª riga)',en:'Tenor (C on line 4)',fr:'Ut 4ᵉ ligne (ténor)',es:'Do en 4.ª línea (tenor)',de:'Tenorschlüssel (C auf Linie 4)',pl:'Klucz tenorowy (C na 4. linii)'},
+  baritone:{it:'Baritono (Fa sulla 3ª riga)',en:'Baritone (F on line 3)',fr:'Clé de fa 3ᵉ ligne (baryton)',es:'Fa en 3.ª línea (barítono)',de:'Baritonschlüssel (F auf Linie 3)',pl:'Klucz barytonowy (F na 3. linii)'},
+  bass:{it:'Basso (Fa sulla 4ª riga)',en:'Bass (F on line 4)',fr:'Clé de fa 4ᵉ ligne (basse)',es:'Fa en 4.ª línea (bajo)',de:'Bassschlüssel (F auf Linie 4)',pl:'Klucz basowy (F na 4. linii)'}
 };
 const INST_NAMES={
-  piano:{it:'Pianoforte',en:'Piano',fr:'Piano',es:'Piano'},
-  epiano:{it:'Pianoforte elettrico',en:'Electric piano',fr:'Piano électrique',es:'Piano eléctrico'},
-  organ:{it:'Organo',en:'Organ',fr:'Orgue',es:'Órgano'},
-  violin:{it:'Violino',en:'Violin',fr:'Violon',es:'Violín'},
-  clarinet:{it:'Clarinetto',en:'Clarinet',fr:'Clarinette',es:'Clarinete'},
-  flute:{it:'Flauto',en:'Flute',fr:'Flûte',es:'Flauta'}
+  piano:{it:'Pianoforte',en:'Piano',fr:'Piano',es:'Piano',de:'Klavier',pl:'Fortepian'},
+  epiano:{it:'Pianoforte elettrico',en:'Electric piano',fr:'Piano électrique',es:'Piano eléctrico',de:'E-Piano',pl:'Pianino elektryczne'},
+  organ:{it:'Organo',en:'Organ',fr:'Orgue',es:'Órgano',de:'Orgel',pl:'Organy'},
+  violin:{it:'Violino',en:'Violin',fr:'Violon',es:'Violín',de:'Violine',pl:'Skrzypce'},
+  clarinet:{it:'Clarinetto',en:'Clarinet',fr:'Clarinette',es:'Clarinete',de:'Klarinette',pl:'Klarnet'},
+  flute:{it:'Flauto',en:'Flute',fr:'Flûte',es:'Flauta',de:'Flöte',pl:'Flet'}
 };
 const DUR_NAMES={
-  w:{it:'Semibreve',en:'Whole note',fr:'Ronde',es:'Redonda'},
-  h:{it:'Minima',en:'Half note',fr:'Blanche',es:'Blanca'},
-  q:{it:'Semiminima',en:'Quarter note',fr:'Noire',es:'Negra'},
-  e:{it:'Croma',en:'Eighth note',fr:'Croche',es:'Corchea'},
-  s:{it:'Semicroma',en:'Sixteenth note',fr:'Double croche',es:'Semicorchea'},
-  t:{it:'Biscroma',en:'Thirty-second note',fr:'Triple croche',es:'Fusa'}
+  w:{it:'Semibreve',en:'Whole note',fr:'Ronde',es:'Redonda',de:'Ganze Note',pl:'Cała nuta'},
+  h:{it:'Minima',en:'Half note',fr:'Blanche',es:'Blanca',de:'Halbe Note',pl:'Półnuta'},
+  q:{it:'Semiminima',en:'Quarter note',fr:'Noire',es:'Negra',de:'Viertelnote',pl:'Ćwierćnuta'},
+  e:{it:'Croma',en:'Eighth note',fr:'Croche',es:'Corchea',de:'Achtelnote',pl:'Ósemka'},
+  s:{it:'Semicroma',en:'Sixteenth note',fr:'Double croche',es:'Semicorchea',de:'Sechzehntelnote',pl:'Szesnastka'},
+  t:{it:'Biscroma',en:'Thirty-second note',fr:'Triple croche',es:'Fusa',de:'Zweiunddreißigstelnote',pl:'Trzydziestodwójka'}
 };
 
 let curLang='it';
@@ -1458,6 +1458,7 @@ function durNameFor(id){const row=DUR_NAMES[id];return row?(row[curLang]||row.it
 function durLabel(id,dot){
   const name=durNameFor(id);
   if(curLang==='en')return dot?'Dotted '+name.charAt(0).toLowerCase()+name.slice(1):name;
+  if(curLang==='de')return dot?'Punktierte '+name:name;
   return dot?name+' '+t('dur.dotted'):name;
 }
 /* Applica le traduzioni al markup statico: data-i18n (testo), data-i18n-html (HTML, es. i tasti nel suggerimento),
