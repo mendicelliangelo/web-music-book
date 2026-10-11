@@ -591,6 +591,12 @@ text.ts {
   font-size: 13.5px;
   min-width: 0;
 }
+.group p.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
 
 /* barra di ascolto, fissa in basso */
 .dock {
