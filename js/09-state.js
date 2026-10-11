@@ -8,7 +8,7 @@ const exampleEvents=()=>[
   N(28,'q'),N(28,'q'),N(29,'q'),N(30,'q'), N(30,'q',1),N(29,'e'),N(29,'h'),
   N(30,'q'),N(30,'q'),N(31,'q'),N(32,'q'), N(32,'q'),N(31,'q'),N(30,'q'),N(29,'q'),
   N(28,'q'),N(28,'q'),N(29,'q'),N(30,'q'), N(29,'q',1),N(28,'e'),N(28,'h')];
-const state={title:t('sheet.exampleTitle'),meter:'4/4',bpm:108,inst:'piano',key:0,nS:1,zoom:1,measureNumEvery:0,noteNames:false,noteColors:false,staffColors:false,playbackRate:1,loopSel:false,swing:false,
+const state={title:t('sheet.exampleTitle'),meter:'4/4',bpm:108,inst:'piano',key:0,nS:1,zoom:1,measureNumEvery:0,noteNames:false,noteColors:false,staffColors:false,playbackRate:1,loopSel:false,swing:false,stereoStaves:false,reverb:0,handwritten:false,
   staveMix:[{mute:false,solo:false,vol:1},{mute:false,solo:false,vol:1}],
   staves:[{clef:'treble',events:exampleEvents()},{clef:'bass',events:[]}],
   as:0,cur:0,sel:-1,selEnd:-1,selN:-1,clip:null,tool:{dur:'q',dot:false,acc:null,chord:false,over:false,timed:false,pc:false,pcLayout:'tracker'},kbOct:4};
@@ -36,6 +36,9 @@ function applySettings(o){
   const pr=+o.playbackRate;if(pr>=0.5&&pr<=1)state.playbackRate=pr;
   if(typeof o.loopSel==='boolean')state.loopSel=o.loopSel;
   if(typeof o.swing==='boolean')state.swing=o.swing;
+  if(typeof o.stereoStaves==='boolean')state.stereoStaves=o.stereoStaves;
+  const rv=+o.reverb;if(rv>=0&&rv<=1)state.reverb=rv;
+  if(typeof o.handwritten==='boolean')state.handwritten=o.handwritten;
 }
 function applyStaves(arr){                         // arr: [{clef,events}] (formato nuovo) oppure un solo elenco vecchio
   const out=[];
@@ -47,7 +50,7 @@ function applyStaves(arr){                         // arr: [{clef,events}] (form
   state.staves=out;
 }
 function save(){
-  try{localStorage.setItem(STORE,JSON.stringify({title:state.title,meter:state.meter,bpm:state.bpm,inst:state.inst,key:state.key,nS:state.nS,zoom:state.zoom,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors,playbackRate:state.playbackRate,loopSel:state.loopSel,swing:state.swing,staves:state.staves,tool:{dur:state.tool.dur,dot:state.tool.dot}}))}catch(_){}
+  try{localStorage.setItem(STORE,JSON.stringify({title:state.title,meter:state.meter,bpm:state.bpm,inst:state.inst,key:state.key,nS:state.nS,zoom:state.zoom,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors,playbackRate:state.playbackRate,loopSel:state.loopSel,swing:state.swing,stereoStaves:state.stereoStaves,reverb:state.reverb,handwritten:state.handwritten,staves:state.staves,tool:{dur:state.tool.dur,dot:state.tool.dot}}))}catch(_){}
 }
 (function restore(){
   try{

@@ -43,6 +43,9 @@
   padding: 4px 2px 14px;
   flex-wrap: wrap;
 }
+html.embed .topbar {
+  display: none;
+}
 .topbar .brand {
   font-size: clamp(18px, 2.6vw, 24px);
 }

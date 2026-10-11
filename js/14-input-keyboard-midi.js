@@ -108,8 +108,15 @@ async function connectMidi(){
   };
   midiAccess.onstatechange=attach;attach();
 }
+const midiPedal={down:false};
 function onMidi(ev){
   const [st,a,b]=ev.data,hi=st&0xF0;
   if(hi===0x90&&b>0)noteOn(a,ev.timeStamp);
   else if(hi===0x80||(hi===0x90&&b===0))noteOff(a,ev.timeStamp);
+  else if(hi===0xB0&&a===64){
+    // pedale di sostegno (CC64) di una tastiera MIDI: avvia o ferma la registrazione
+    const down=b>=64;
+    if(down&&!midiPedal.down){midiPedal.down=true;recS.on?stopRec():startRec()}
+    else if(!down)midiPedal.down=false;
+  }
 }

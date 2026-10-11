@@ -294,6 +294,7 @@ function buildPdf(staves, o) {
     MT = 50,
     MB = 46,
     HEAD = 44,
+    MINI_HEAD = 20,
     k = (PW - 2 * ML) / W;
   const L = buildLayout(staves, {
     width: W,
@@ -321,7 +322,7 @@ function buildPdf(staves, o) {
       cur = {
         sys: [],
         used: 0,
-        avail: PH - MT - MB - (pages.length ? 0 : HEAD),
+        avail: PH - MT - MB - (pages.length ? MINI_HEAD : HEAD),
         first: !pages.length,
       };
       pages.push(cur);
@@ -351,7 +352,7 @@ function buildPdf(staves, o) {
   }
   const out = pages.map((pg, pi) => {
     const y0 = L.systems[pg.sys[0]].top,
-      top = MT + (pg.first ? HEAD : 0);
+      top = MT + (pg.first ? HEAD : MINI_HEAD);
     const map = (x, y) => [ML + x * k, PH - (top + (y - y0) * k)];
     let c = "0 g 0 G\n";
     if (pg.first) {
@@ -367,6 +368,9 @@ function buildPdf(staves, o) {
       for (const sh of ns)
         c += emitShape(sh, (x, y) => [nx + x, PH - MT - 14 - y], 1);
       c += `BT /F3 11 Tf ${n2(nx + 9)} ${n2(PH - MT - 14)} Td (= ${o.bpm}) Tj ET\n`;
+    } else {
+      const titleTxt = o.title || t("sheet.untitled");
+      c += `BT /F3 10 Tf ${n2(ML)} ${n2(PH - MT + 2)} Td (${pdfText(titleTxt)}) Tj ET\n`;
     }
     for (const { sh } of bodies[pi]) {
       if (sh.t === "text") {

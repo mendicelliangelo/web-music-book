@@ -275,6 +275,18 @@ text.notename {
   text-anchor: middle;
   pointer-events: none;
 }
+html.handwritten .title-input,
+html.handwritten #tmark {
+  font-family: "Caveat", var(--serif);
+}
+html.handwritten text.ts,
+html.handwritten text.dyn,
+html.handwritten text.mnum,
+html.handwritten text.rehearsal,
+html.handwritten text.ped,
+html.handwritten text.notename {
+  font-family: "Caveat", var(--serif);
+}
 .ev {
   color: var(--ink);
   cursor: pointer;
@@ -408,6 +420,40 @@ text.notename {
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+.metrodot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--line);
+  vertical-align: middle;
+}
+.metrodot.pulse {
+  animation: metropulse 0.25s ease-out;
+}
+.metrodot.pulse.accent {
+  animation: metropulseaccent 0.25s ease-out;
+}
+@keyframes metropulse {
+  0% {
+    background: var(--accent);
+    transform: scale(1.3);
+  }
+  100% {
+    background: var(--line);
+    transform: scale(1);
+  }
+}
+@keyframes metropulseaccent {
+  0% {
+    background: var(--warn);
+    transform: scale(1.5);
+  }
+  100% {
+    background: var(--line);
+    transform: scale(1);
+  }
 }
 .tpl-ctl > span {
   text-transform: none;

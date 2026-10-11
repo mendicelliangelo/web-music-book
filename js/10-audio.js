@@ -1,11 +1,25 @@
 'use strict';
 /* ---------- 8. Suono (sintesi nel browser) ---------- */
 const synth={ac:null,master:null,waves:{}};
+function impulseResponse(ac,duration,decay){
+  // riverbero sintetico: rumore con decadimento esponenziale, nessun file audio esterno
+  const rate=ac.sampleRate,len=Math.max(1,Math.round(rate*duration)),ir=ac.createBuffer(2,len,rate);
+  for(let ch=0;ch<2;ch++){
+    const d=ir.getChannelData(ch);
+    for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);
+  }
+  return ir;
+}
 function audio(){
   if(!synth.ac){
     const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;
     const ac=new C(),m=ac.createGain(),comp=ac.createDynamicsCompressor();
-    m.gain.value=.9;m.connect(comp);comp.connect(ac.destination);synth.ac=ac;synth.master=m;
+    m.gain.value=.9;
+    const conv=ac.createConvolver();conv.buffer=impulseResponse(ac,2.2,3);
+    const wet=ac.createGain();wet.gain.value=state.reverb||0;
+    m.connect(comp);m.connect(wet);wet.connect(conv);conv.connect(comp);
+    comp.connect(ac.destination);
+    synth.ac=ac;synth.master=m;synth.reverbWet=wet;
   }
   if(synth.ac.state==='suspended')synth.ac.resume();
   return synth.ac;
@@ -19,7 +33,7 @@ function waveOf(inst){
   return synth.waves[inst.id];
 }
 const voices=[];
-function tone(midi,t,dur,inst,vel){
+function tone(midi,t,dur,inst,vel,pan){
   const ac=synth.ac,f=440*Math.pow(2,(midi-69)/12);
   const o=ac.createOscillator();o.setPeriodicWave(waveOf(inst));o.frequency.value=f;
   const lp=ac.createBiquadFilter();lp.type='lowpass';lp.Q.value=.7;
@@ -29,7 +43,9 @@ function tone(midi,t,dur,inst,vel){
   if(inst.sus>0)g.gain.setTargetAtTime(peak*inst.sus,t+inst.a,inst.d);
   else g.gain.setTargetAtTime(.0001,t+inst.a,inst.tau*Math.pow(2,-(midi-60)/inst.pd));
   g.gain.setTargetAtTime(.0001,end,inst.r);
-  o.connect(lp);lp.connect(g);g.connect(synth.master);
+  o.connect(lp);lp.connect(g);
+  if(pan&&ac.createStereoPanner){const p=ac.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));g.connect(p);p.connect(synth.master)}
+  else g.connect(synth.master);
   const stopAt=end+inst.r*8+.05;
   if(inst.vib){
     const lfo=ac.createOscillator(),lg=ac.createGain();
@@ -84,9 +100,11 @@ function startPlay(){
   play.starts=starts;
   Object.assign(play,{on:true,t0:ac.currentTime+.15,spt,notes,idx:0,cur:visible().map(()=>-1),total,loop,loopStart});
   const inst=instOf();
+  const nS=state.nS;
   const pump=()=>{
     while(play.idx<play.notes.length&&play.t0+play.notes[play.idx].s*spt<ac.currentTime+1.5){
-      const n=play.notes[play.idx];tone(n.m,play.t0+n.s*spt,n.l*spt*.97,inst,n.v);play.idx++;
+      const n=play.notes[play.idx],pan=state.stereoStaves&&nS>1?(n.k===0?-.5:.5):0;
+      tone(n.m,play.t0+n.s*spt,n.l*spt*.97,inst,n.v,pan);play.idx++;
     }
   };
   pump();play.timer=setInterval(pump,100);

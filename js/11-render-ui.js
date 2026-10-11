@@ -43,10 +43,13 @@ function updateChrome(){
   $('zoom').value=String(Math.round((state.zoom||1)*100));
   $('measureNumEvery').value=String(state.measureNumEvery||0);
   $('noteNames').checked=!!state.noteNames;$('noteColors').checked=!!state.noteColors;$('staffColors').checked=!!state.staffColors;
+  $('handwritten').checked=!!state.handwritten;document.documentElement.classList.toggle('handwritten',!!state.handwritten);
   $('clef0').value=state.staves[0].clef;$('clef1').value=state.staves[1].clef;$('clef1f').hidden=state.nS<2;
   $('mix1f').hidden=state.nS<2;
   $('playbackRate').value=String(Math.round((state.playbackRate||1)*100));$('playbackRateLabel').textContent=Math.round((state.playbackRate||1)*100)+'%';
   $('loopSel').checked=!!state.loopSel;$('swing').checked=!!state.swing;
+  $('stereoStaves').checked=!!state.stereoStaves;
+  $('reverb').value=String(Math.round((state.reverb||0)*100));$('reverbLabel').textContent=Math.round((state.reverb||0)*100)+'%';
   [0,1].forEach(k=>{
     const m=state.staveMix[k]||{mute:false,solo:false,vol:1};
     $('solo'+k).checked=!!m.solo;$('mute'+k).checked=!!m.mute;$('vol'+k).value=String(Math.round((m.vol??1)*100));

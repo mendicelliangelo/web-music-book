@@ -107,14 +107,26 @@ function toggleTimed(){
   $('holdInfo').textContent='';
   if(state.tool.timed)toast(t('t.timedOn'));
 }
-const metro={on:false,timer:0,next:0,n:0};
+const metro={on:false,timer:0,next:0,n:0,bpm:108};
+function pulseDot(delayMs,accent){
+  setTimeout(()=>{
+    const d=$('metroDot');if(!d)return;
+    d.classList.remove('pulse','accent');void d.offsetWidth;d.classList.add('pulse');if(accent)d.classList.add('accent');
+  },Math.max(0,delayMs));
+}
 function toggleMetro(){
   if(metro.on){metro.on=false;clearInterval(metro.timer);$('btnMetro').setAttribute('aria-pressed','false');return}
   const ac=audio();if(!ac){toast(t('t.noAudio'));return}
-  metro.on=true;metro.n=0;metro.next=ac.currentTime+.1;$('btnMetro').setAttribute('aria-pressed','true');
+  metro.on=true;metro.n=0;metro.next=ac.currentTime+.1;metro.bpm=state.bpm;$('btnMetro').setAttribute('aria-pressed','true');
   metro.timer=setInterval(()=>{
-    const ac2=synth.ac,beat=60/state.bpm*(beatTicksOf(state.meter)/PPQ),per=Math.max(1,Math.round(btNow()/beatTicksOf(state.meter)));
-    while(metro.next<ac2.currentTime+.4){click(metro.next,metro.n%per===0);metro.n++;metro.next+=beat}
+    const ac2=synth.ac,per=Math.max(1,Math.round(btNow()/beatTicksOf(state.meter)));
+    while(metro.next<ac2.currentTime+.4){
+      const accent=metro.n%per===0;
+      if(metro.n>0&&accent&&$('metroGrow').checked)metro.bpm=Math.min(240,metro.bpm+2);
+      click(metro.next,accent);
+      pulseDot((metro.next-ac2.currentTime)*1000,accent);
+      metro.n++;metro.next+=60/metro.bpm*(beatTicksOf(state.meter)/PPQ);
+    }
   },60);
 }
 $('btnTimed').addEventListener('click',e=>{toggleTimed();blurIfMouse(e)});
@@ -142,9 +154,16 @@ $('measureNumEvery').addEventListener('change',e=>{state.measureNumEvery=+e.targ
 $('noteNames').addEventListener('change',e=>{state.noteNames=e.target.checked;render()});
 $('noteColors').addEventListener('change',e=>{state.noteColors=e.target.checked;render()});
 $('staffColors').addEventListener('change',e=>{state.staffColors=e.target.checked;render()});
+$('handwritten').addEventListener('change',e=>{state.handwritten=e.target.checked;document.documentElement.classList.toggle('handwritten',e.target.checked);save()});
 $('playbackRate').addEventListener('input',e=>{state.playbackRate=Math.max(.5,Math.min(1,(+e.target.value||100)/100));$('playbackRateLabel').textContent=Math.round(state.playbackRate*100)+'%';save()});
 $('loopSel').addEventListener('change',e=>{state.loopSel=e.target.checked;save()});
 $('swing').addEventListener('change',e=>{state.swing=e.target.checked;save()});
+$('stereoStaves').addEventListener('change',e=>{state.stereoStaves=e.target.checked;save()});
+$('reverb').addEventListener('input',e=>{
+  state.reverb=Math.max(0,Math.min(1,(+e.target.value||0)/100));$('reverbLabel').textContent=Math.round(state.reverb*100)+'%';
+  if(synth.reverbWet)synth.reverbWet.gain.value=state.reverb;
+  save();
+});
 [0,1].forEach(k=>{
   $('solo'+k).addEventListener('change',e=>{state.staveMix[k].solo=e.target.checked});
   $('mute'+k).addEventListener('change',e=>{state.staveMix[k].mute=e.target.checked});

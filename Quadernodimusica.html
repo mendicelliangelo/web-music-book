@@ -2,13 +2,13 @@
 <title>Quaderno di musica</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,500&family=Schibsted+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap">
 <link rel="stylesheet" href="css/variables.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/responsive.css">
-<script>(function(){try{var th=localStorage.getItem('quaderno-musica-theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th)}catch(_){}})();</script>
+<script>(function(){try{var th=localStorage.getItem('quaderno-musica-theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th)}catch(_){}try{if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('embed')}catch(_){}})();</script>
 </head><body>
 
 <div class="splash" id="splash">
@@ -169,6 +169,8 @@
           <button class="btn" id="btnPc" type="button" aria-pressed="false" data-i18n="keys.pcBtn" data-i18n-title="keys.pcTitle" title="Le lettere indicate sui tasti suonano il pianoforte dalla tastiera del computer">Tastiera del PC</button>
           <select id="pcLayout" aria-label="Disposizione dei tasti del computer" data-i18n-title="keys.pcLayoutTitle" title="Disposizione dei tasti del computer"></select>
           <button class="btn" id="btnMetro" type="button" aria-pressed="false" data-i18n="keys.metro" data-i18n-title="keys.metroTitle" title="Colpo di metronomo al tempo scelto, per tenere il ritmo">Metronomo</button>
+          <span id="metroDot" class="metrodot" aria-hidden="true"></span>
+          <label class="field tpl-ctl"><input type="checkbox" id="metroGrow"><span data-i18n="keys.metroGrow">Aumenta il tempo a ogni giro</span></label>
           <span id="holdInfo" aria-live="off"></span>
           <span id="midiState"></span>
         </div>
@@ -198,12 +200,18 @@
         <label class="field tpl-ctl"><input type="checkbox" id="noteNames"><span data-i18n="settings.noteNames">Nomi sulle note</span></label>
         <label class="field tpl-ctl"><input type="checkbox" id="noteColors"><span data-i18n="settings.noteColors">Colori per nota</span></label>
         <label class="field tpl-ctl"><input type="checkbox" id="staffColors"><span data-i18n="settings.staffColors">Colori per pentagramma</span></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="handwritten"><span data-i18n="settings.handwritten">Stile scritto a mano (titolo e testi)</span></label>
         <label class="field zoom-ctl"><span data-i18n="settings.playbackRate">Velocità di riproduzione</span>
           <input type="range" id="playbackRate" min="50" max="100" step="5" value="100" aria-label="Velocità di riproduzione" data-i18n-aria="settings.playbackRate">
           <span id="playbackRateLabel">100%</span>
         </label>
         <label class="field tpl-ctl"><input type="checkbox" id="loopSel"><span data-i18n="settings.loopSel">Riproduzione ciclica della selezione</span></label>
         <label class="field tpl-ctl"><input type="checkbox" id="swing"><span data-i18n="settings.swing">Swing (solo in ascolto)</span></label>
+        <label class="field tpl-ctl"><input type="checkbox" id="stereoStaves"><span data-i18n="settings.stereoStaves">Stereo per pentagramma</span></label>
+        <label class="field zoom-ctl"><span data-i18n="settings.reverb">Riverbero</span>
+          <input type="range" id="reverb" min="0" max="100" step="5" value="0" aria-label="Riverbero" data-i18n-aria="settings.reverb">
+          <span id="reverbLabel">0%</span>
+        </label>
         <div class="field mixrow">
           <span data-i18n="settings.mix0">Pentagramma 1 · solo, muto, volume</span>
           <div class="tools">
