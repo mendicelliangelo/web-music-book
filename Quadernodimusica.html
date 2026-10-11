@@ -54,9 +54,24 @@
             <button class="tool" id="btnAcc" type="button" aria-pressed="false" data-i18n="dyn.acc" data-i18n-title="dyn.accTitle" title="Accento: la nota suona più forte (tasto &gt;)">Accento</button>
             <button class="tool" id="btnSlur" type="button" data-i18n="dyn.slur" data-i18n-title="dyn.slurTitle" title="Legatura di frase sulle figure selezionate (tasto L)">Legatura di frase</button>
             <button class="tool" id="btnPedal" type="button" data-i18n="dyn.pedal" data-i18n-title="dyn.pedalTitle" title="Pedale di risonanza dalla prima all'ultima figura selezionata">Pedale</button>
+            <button class="tool" id="btnFermata" type="button" data-i18n="dyn.fermata" data-i18n-title="dyn.fermataTitle" title="Corona: allunga la nota, solo in ascolto">Corona</button>
+            <button class="tool" id="btnTrill" type="button" data-i18n="dyn.trill" data-i18n-title="dyn.trillTitle" title="Trillo: solo il segno, non cambia il suono">Trillo</button>
+            <button class="tool" id="btnMordent" type="button" data-i18n="dyn.mordent" data-i18n-title="dyn.mordentTitle" title="Mordente: solo il segno, non cambia il suono">Mordente</button>
+            <button class="tool" id="btnCresc" type="button" data-i18n="dyn.cresc" data-i18n-title="dyn.crescTitle" title="Forcella di crescendo dalla prima all'ultima figura selezionata">Crescendo</button>
+            <button class="tool" id="btnDim" type="button" data-i18n="dyn.dim" data-i18n-title="dyn.dimTitle" title="Forcella di diminuendo dalla prima all'ultima figura selezionata">Diminuendo</button>
             <button class="tool" id="btnClearMk" type="button" data-i18n="dyn.clearMk" data-i18n-title="dyn.clearMkTitle" title="Toglie dinamica, staccato, accento e legature di frase">Togli segni</button>
             <input type="text" id="rehLetter" maxlength="2" size="2" placeholder="A" aria-label="Lettera di richiamo" data-i18n-aria="dyn.rehearsalLabel" style="width:3em">
             <button class="tool" id="btnRehearsal" type="button" data-i18n="dyn.rehearsalBtn" data-i18n-title="dyn.rehearsalBtnTitle" title="Aggiunge o togli una lettera di richiamo sopra la prima figura della selezione (o quella prima del cursore)">Lettera di richiamo</button>
+          </div>
+        </div>
+        <div class="group">
+          <span class="glabel" data-i18n="dyn.textChordTitle">Testo e accordi (sulla prima figura della selezione, o quella prima del cursore)</span>
+          <div class="tools">
+            <input type="text" id="lyrText" maxlength="20" placeholder="la" aria-label="Testo sotto la nota" data-i18n-aria="dyn.lyrLabel" data-i18n-ph="dyn.lyrLabel" style="width:7em">
+            <button class="tool" id="btnLyric" type="button" data-i18n="dyn.lyrBtn" data-i18n-title="dyn.lyrBtnTitle" title="Scrive il testo sotto la nota; campo vuoto = togli">Testo</button>
+            <input type="text" id="chordText" maxlength="10" placeholder="Sol7" aria-label="Sigla accordo sopra la nota" data-i18n-aria="dyn.chordLabel" data-i18n-ph="dyn.chordLabel" style="width:7em">
+            <button class="tool" id="btnChord" type="button" data-i18n="dyn.chordBtn" data-i18n-title="dyn.chordBtnTitle" title="Scrive la sigla dell'accordo sopra la nota; campo vuoto = togli">Accordo</button>
+            <button class="tool" id="btnAnalyzeChords" type="button" data-i18n="dyn.analyzeChords" data-i18n-title="dyn.analyzeChordsTitle" title="Riconosce l'accordo di ogni battuta (tutto il pentagramma, o solo la selezione) e lo scrive sopra la prima nota">Analizza accordi</button>
           </div>
         </div>
         <div class="group">
@@ -99,6 +114,21 @@
           </div>
         </div>
         <div class="group">
+          <span class="glabel" data-i18n="xform.patternTitle">Autocompletamento (dalla tonalità corrente, al cursore)</span>
+          <div class="tools">
+            <select id="patMode" aria-label="Modo" data-i18n-aria="xform.patternMode">
+              <option value="major" data-i18n="xform.patternMajor">Maggiore</option>
+              <option value="minor" data-i18n="xform.patternMinor">Minore</option>
+            </select>
+            <select id="patKind" aria-label="Tipo di pattern" data-i18n-aria="xform.patternKind">
+              <option value="scale" data-i18n="xform.patternScale">Scala</option>
+              <option value="arpeggio" data-i18n="xform.patternArpeggio">Arpeggio</option>
+              <option value="alberti" data-i18n="xform.patternAlberti">Basso albertino</option>
+            </select>
+            <button class="tool" id="btnPattern" type="button" data-i18n="xform.patternBtn" data-i18n-title="xform.patternBtnTitle" title="Genera il pattern scelto, con la durata impostata nella tavolozza, a partire dal cursore">Genera</button>
+          </div>
+        </div>
+        <div class="group">
           <span class="glabel" data-i18n="xform.replaceTitle">Cerca e sostituisci (tutto, o la selezione)</span>
           <div class="tools">
             <select id="xFromNote" data-i18n-aria="xform.replaceFrom" aria-label="Cerca questa nota"></select>
@@ -113,6 +143,8 @@
         <button class="btn primary" id="btnExport" type="button" data-i18n="files.exportMidi">Scarica MIDI</button>
         <button class="btn" id="btnPdf" type="button" data-i18n="files.exportPdf">Scarica PDF</button>
         <button class="btn" id="btnExportImg" type="button" data-i18n="files.exportImg" data-i18n-title="files.exportImgTitle" title="Esporta un'immagine PNG: tutto lo spartito, o solo la selezione se ce n'è una">Esporta immagine</button>
+        <button class="btn" id="btnExportWav" type="button" data-i18n="files.exportWav" data-i18n-title="files.exportWavTitle" title="Esporta l'audio come file WAV, con lo stesso suono dell'ascolto nella pagina">Esporta audio (WAV)</button>
+        <button class="btn" id="btnShareLink" type="button" data-i18n="files.shareLink" data-i18n-title="files.shareLinkTitle" title="Copia un link che apre questo spartito: tutto il brano è codificato nel link stesso, non serve un server">Copia link condivisibile</button>
         <button class="btn" id="btnSaveJson" type="button" data-i18n="files.saveJson">Salva progetto</button>
         <button class="btn" id="btnLoad" type="button" data-i18n="files.loadMidi">Carica MIDI</button>
         <button class="btn" id="btnNew" type="button" data-i18n="files.newSheet">Nuovo spartito</button>
@@ -126,7 +158,7 @@
         <button class="btn" id="btnSaveVersion" type="button" data-i18n="files.saveVersion">Salva versione</button>
         <button class="btn" id="btnRestoreVersion" type="button" data-i18n="files.restoreVersion">Ripristina versione</button>
         <button class="btn" id="btnDeleteVersion" type="button" data-i18n="files.deleteVersion">Elimina versione</button>
-        <input id="fileIn" class="vh" type="file" accept=".mid,.midi,.zip,.json,audio/midi,application/json,application/zip" tabindex="-1">
+        <input id="fileIn" class="vh" type="file" accept=".mid,.midi,.zip,.json,.xml,.musicxml,audio/midi,application/json,application/zip,application/xml,text/xml" tabindex="-1">
         <p data-i18n="files.help">Il PDF è una pagina A4 da stampare, con titolo, numeri di battuta e dinamiche. Per caricare un MIDI scegli il file con il pulsante o trascinalo sullo spartito: le note appaiono sul pentagramma, con tempo, metro, armatura e strumento del file. Il MIDI che scarichi arriva dentro un archivio ZIP (questa pagina non può salvare direttamente file .mid): estrailo per usarlo altrove, oppure ricarica qui lo ZIP così com'è.</p>
       </section>
     </aside>
@@ -165,6 +197,7 @@
             <select id="quant" data-i18n-title="keys.quantTitle" title="Vale per “Registra” e per “Durata dal tocco”"></select>
           </label>
           <button class="btn" id="btnMidi" type="button" data-i18n="keys.midiBtn" data-i18n-title="keys.midiBtnTitle" title="Finché non premi Registra o Durata dal tocco, ogni nota (o accordo) che suoni si scrive subito al cursore con la durata scelta e il cursore avanza da solo: è l'inserimento a passo.">Collega tastiera MIDI</button>
+          <button class="btn" id="btnMicRec" type="button" aria-pressed="false" data-i18n="keys.micRec" data-i18n-title="keys.micRecTitle" title="Registra canticchiando o suonando vicino al microfono: le note rilevate si scrivono sul pentagramma attivo">Registra dal microfono</button>
           <button class="btn" id="btnTimed" type="button" aria-pressed="false" data-i18n="keys.timedBtn" data-i18n-title="keys.timedTitle" title="Quanto tieni premuto un tasto decide la durata della nota">Durata dal tocco</button>
           <button class="btn" id="btnPc" type="button" aria-pressed="false" data-i18n="keys.pcBtn" data-i18n-title="keys.pcTitle" title="Le lettere indicate sui tasti suonano il pianoforte dalla tastiera del computer">Tastiera del PC</button>
           <select id="pcLayout" aria-label="Disposizione dei tasti del computer" data-i18n-title="keys.pcLayoutTitle" title="Disposizione dei tasti del computer"></select>

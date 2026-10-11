@@ -62,6 +62,51 @@ function replaceAll(fromL,fromA,toL,toA){
   stopPlay();rec();rs.forEach((r2,k)=>{state.staves[k].events=r2.events});render();
   toast(t('t.replaced',{n:total}));
 }
+function insertPattern(kind,mode){
+  const row=KEY_TABLE[state.key]||KEY_TABLE[0],letterIdx=mode==='minor'?row[2]:row[0];
+  const ref=lastNoteD(state.cur)??(bdA()+4);
+  let tonicD=null;
+  for(let o=1;o<=7;o++){const dd=o*7+letterIdx;if(tonicD===null||Math.abs(dd-ref)<Math.abs(tonicD-ref))tonicD=dd}
+  const notes=generatePattern(kind,state.key,tonicD);
+  if(!notes.length)return;
+  const ev=EV();
+  if(ev.length+notes.length>MAXEV){toast(t('t.tooLong'));return}
+  stopPlay();rec();
+  const made=notes.map(n=>({r:false,v:state.tool.dur,dot:state.tool.dot?1:0,n:[{d:n.d,a:n.a}]}));
+  const idx=state.cur;
+  if(state.tool.over)clearSpan(ev,idx,made.reduce((a,e)=>a+evTicks(e),0));
+  ev.splice(idx,0,...made);
+  const endT=ticksBefore(ev,idx+made.length);
+  const rs=resplitEvents(ev,btNow());
+  if(rs.changed)state.staves[state.as].events=rs.events;
+  state.cur=idxAtTick(EV(),endT);state.sel=-1;state.selEnd=-1;state.selN=-1;
+  render();
+  toast(t('t.patternInserted',{n:made.length}));
+}
+$('btnPattern').addEventListener('click',e=>{insertPattern($('patKind').value,$('patMode').value);blurIfMouse(e)});
+function analyzeChords(){
+  const r=isRange()?selRange():null,ev=EV();
+  if(!ev.length){toast(t('t.emptySheet'));return}
+  const an=analyze(ev,btNow()),byM=new Map();
+  ev.forEach((e,i)=>{
+    if(e.r||(r&&(i<r[0]||i>r[1])))return;
+    const m=an.items[i].m;
+    if(!byM.has(m))byM.set(m,{firstIdx:i,pcs:new Map()});
+    const g=byM.get(m);
+    e.n.forEach(n=>{const pc=((noteMidi(n)%12)+12)%12;g.pcs.set(pc,(g.pcs.get(pc)||0)+1)});
+  });
+  if(!byM.size){toast(t('t.noNotesInSelection'));return}
+  stopPlay();rec();
+  let count=0;
+  byM.forEach(g=>{
+    const best=bestDiatonicChord(g.pcs,state.key);
+    if(!best)return;
+    ev[g.firstIdx].chord=chordSymbolFor(best.rootPC,best.quality,best.has7,state.key);count++;
+  });
+  render();
+  toast(count?t('t.chordsAnalyzed',{n:count}):t('t.noNotesInSelection'));
+}
+$('btnAnalyzeChords').addEventListener('click',e=>{analyzeChords();blurIfMouse(e)});
 $('xReplace').addEventListener('click',e=>{
   const[fl,fa]=$('xFromNote').value.split(',').map(Number),[tl,ta]=$('xToNote').value.split(',').map(Number);
   replaceAll(fl,fa,tl,ta);blurIfMouse(e);

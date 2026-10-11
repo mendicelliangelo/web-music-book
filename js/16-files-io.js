@@ -9,7 +9,7 @@ const errMsg=code=>t(ERR_T[code]||'t.fileUnreadable');
 const dlReady=(()=>{try{return window.claude&&window.claude.use?Promise.resolve(window.claude.use('downloads')).catch(()=>null):Promise.resolve(null)}catch(_){return Promise.resolve(null)}})();
 function anchorSave(filename,data){                // ultima possibilità: download del browser (può essere bloccato dalla vista)
   try{
-    const blob=new Blob([data],{type:/\.pdf$/.test(filename)?'application/pdf':/\.json$/.test(filename)?'application/json':/\.png$/.test(filename)?'image/png':/\.svg$/.test(filename)?'image/svg+xml':'application/zip'});
+    const blob=new Blob([data],{type:/\.pdf$/.test(filename)?'application/pdf':/\.json$/.test(filename)?'application/json':/\.png$/.test(filename)?'image/png':/\.svg$/.test(filename)?'image/svg+xml':/\.wav$/.test(filename)?'audio/wav':'application/zip'});
     const url=URL.createObjectURL(blob),a=document.createElement('a');
     a.href=url;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);return true;
@@ -77,6 +77,131 @@ $('btnExportImg').addEventListener('click',async()=>{
   }catch(_){toast(t('t.fileUnreadable'))}
   finally{URL.revokeObjectURL(url)}
 });
+function audioBufferToWav(buffer){
+  const numCh=buffer.numberOfChannels,len=buffer.length,sampleRate=buffer.sampleRate;
+  const blockAlign=numCh*2,dataSize=len*blockAlign;
+  const buf=new ArrayBuffer(44+dataSize),view=new DataView(buf);
+  const writeStr=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i))};
+  writeStr(0,'RIFF');view.setUint32(4,36+dataSize,true);writeStr(8,'WAVE');
+  writeStr(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+  view.setUint16(22,numCh,true);view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*blockAlign,true);view.setUint16(32,blockAlign,true);view.setUint16(34,16,true);
+  writeStr(36,'data');view.setUint32(40,dataSize,true);
+  const chans=[];for(let c=0;c<numCh;c++)chans.push(buffer.getChannelData(c));
+  let off=44;
+  for(let i=0;i<len;i++)for(let c=0;c<numCh;c++){
+    const s=Math.max(-1,Math.min(1,chans[c][i]));
+    view.setInt16(off,s<0?s*0x8000:s*0x7fff,true);off+=2;
+  }
+  return new Blob([buf],{type:'audio/wav'});
+}
+$('btnExportWav').addEventListener('click',async()=>{
+  stopPlay();if(recS.on)stopRec();
+  if(!visible().some(s=>s.events.length)){toast(t('t.writeFirst'));return}
+  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  if(!OAC){toast(t('t.noAudio'));return}
+  const spt=60/(state.bpm*PPQ)/(state.playbackRate||1),durSec=maxTotal()*spt+3;
+  const oac=new OAC(2,Math.max(1,Math.ceil(durSec*44100)),44100);
+  const master=oac.createGain();master.gain.value=.9;
+  const comp=oac.createDynamicsCompressor();
+  const conv=oac.createConvolver();conv.buffer=impulseResponse(oac,2.2,3);
+  const wet=oac.createGain();wet.gain.value=state.reverb||0;
+  master.connect(comp);master.connect(wet);wet.connect(conv);conv.connect(comp);comp.connect(oac.destination);
+  const waves={};
+  const waveFor=(inst)=>{
+    if(!waves[inst.id]){
+      const re=new Float32Array(inst.harm.length+1),im=new Float32Array(inst.harm.length+1);
+      inst.harm.forEach((a,k)=>{im[k+1]=a});
+      waves[inst.id]=oac.createPeriodicWave(re,im);
+    }
+    return waves[inst.id];
+  };
+  const toneOff=(midi,t,dur,inst,vel,pan)=>{
+    // rispecchia tone() in 10-audio.js, ma su OfflineAudioContext (le PeriodicWave non si condividono tra contesti)
+    const f=440*Math.pow(2,(midi-69)/12);
+    const o=oac.createOscillator();o.setPeriodicWave(waveFor(inst));o.frequency.value=f;
+    const lp=oac.createBiquadFilter();lp.type='lowpass';lp.Q.value=.7;
+    lp.frequency.setValueAtTime(Math.min(f*inst.br,14000),t);lp.frequency.setTargetAtTime(Math.min(f*inst.dk,14000),t,inst.ft);
+    const g=oac.createGain(),peak=.2*inst.lv*Math.min(1.4,(vel||90)/90),end=Math.max(t+dur,t+inst.a+.02);
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(peak,t+inst.a);
+    if(inst.sus>0)g.gain.setTargetAtTime(peak*inst.sus,t+inst.a,inst.d);
+    else g.gain.setTargetAtTime(.0001,t+inst.a,inst.tau*Math.pow(2,-(midi-60)/inst.pd));
+    g.gain.setTargetAtTime(.0001,end,inst.r);
+    o.connect(lp);lp.connect(g);
+    if(pan&&oac.createStereoPanner){const p=oac.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));g.connect(p);p.connect(master)}
+    else g.connect(master);
+    const stopAt=end+inst.r*8+.05;
+    if(inst.vib){
+      const lfo=oac.createOscillator(),lg=oac.createGain();
+      lfo.frequency.value=inst.vib[0];lg.gain.setValueAtTime(0,t);lg.gain.linearRampToValueAtTime(f*inst.vib[1],t+.35);
+      lfo.connect(lg);lg.connect(o.frequency);lfo.start(t);lfo.stop(stopAt);
+    }
+    o.start(t);o.stop(stopAt);
+  };
+  let notes=[];
+  const mix=state.staveMix||[],anySolo=mix.some(m=>m&&m.solo);
+  visible().forEach((s,k)=>{
+    const m=mix[k]||{mute:false,solo:false,vol:1};
+    if(m.mute||(anySolo&&!m.solo))return;
+    const vol=m.vol==null?1:m.vol;
+    let staffNotes=applyPedal(flattenNotes(s.events),pedalSpans(s.events));
+    staffNotes=applyFermata(staffNotes,fermataTicks(s.events));
+    staffNotes=applyHairpins(staffNotes,hairpinSpans(s.events));
+    if(state.swing)staffNotes=applySwing(staffNotes,beatTicksOf(state.meter));
+    staffNotes.forEach(n=>notes.push({...n,v:Math.max(0,Math.min(127,Math.round(n.v*vol))),k}));
+  });
+  const inst=instOf(),nS=state.nS;
+  notes.forEach(n=>{
+    const pan=state.stereoStaves&&nS>1?(n.k===0?-.5:.5):0;
+    toneOff(n.m,0.1+n.s*spt,n.l*spt*.97,inst,n.v,pan);
+  });
+  toast(t('t.renderingAudio'));
+  try{
+    const buf=await oac.startRendering();
+    const wavBlob=audioBufferToWav(buf);
+    await saveFile((slugify(state.title)||'brano')+'.wav',wavBlob);
+  }catch(_){toast(t('t.fileUnreadable'))}
+});
+function bytesToBase64Url(bytes){
+  let bin='';bytes.forEach(b=>{bin+=String.fromCharCode(b)});
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64UrlToBytes(s){
+  s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';
+  const bin=atob(s),out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+async function compressToBase64(str){
+  const bytes=new TextEncoder().encode(str);
+  if(window.CompressionStream){
+    const cs=new CompressionStream('gzip'),writer=cs.writable.getWriter();
+    writer.write(bytes);writer.close();
+    const buf=await new Response(cs.readable).arrayBuffer();
+    return 'gz:'+bytesToBase64Url(new Uint8Array(buf));
+  }
+  return 'raw:'+bytesToBase64Url(bytes);
+}
+async function decompressFromBase64(s){
+  const i=s.indexOf(':'),tag=s.slice(0,i),bytes=base64UrlToBytes(s.slice(i+1));
+  if(tag==='gz'&&window.DecompressionStream){
+    const ds=new DecompressionStream('gzip'),writer=ds.writable.getWriter();
+    writer.write(bytes);writer.close();
+    const buf=await new Response(ds.readable).arrayBuffer();
+    return new TextDecoder().decode(buf);
+  }
+  return new TextDecoder().decode(bytes);
+}
+$('btnShareLink').addEventListener('click',async()=>{
+  try{
+    const o={app:'quaderno-di-musica',versione:2,title:state.title,meter:state.meter,bpm:state.bpm,inst:state.inst,key:state.key,nS:state.nS,staves:state.staves};
+    const enc=await compressToBase64(JSON.stringify(o));
+    const url=location.origin+location.pathname+'#share='+enc;
+    if(url.length>8000)toast(t('t.shareLinkLong'));
+    try{await navigator.clipboard.writeText(url);toast(url.length>8000?t('t.shareLinkLong'):t('t.shareLinkCopied'))}
+    catch(_){window.prompt(t('t.shareLinkPrompt'),url)}
+  }catch(_){toast(t('t.fileUnreadable'))}
+});
 $('btnSaveJson').addEventListener('click',async()=>{
   const slug=slugify(state.title)||'brano';
   const o={app:'quaderno-di-musica',versione:2,title:state.title,meter:state.meter,bpm:state.bpm,inst:state.inst,key:state.key,nS:state.nS,staves:state.staves};
@@ -91,8 +216,28 @@ async function openFile(f){
       const ents=unzipStored(buf),m=ents&&ents.find(x=>/\.midi?$/i.test(x.name));
       if(!m)throw new Error('ERR_ZIP_NO_MIDI');
       importMidi(m.data.slice().buffer,m.name);
-    }else importJson(new TextDecoder().decode(u));
+    }else{
+      const text=new TextDecoder().decode(u);
+      if(/^\s*<\?xml|<score-partwise/i.test(text))importMusicXml(text,f.name);
+      else importJson(text);
+    }
   }catch(err){toast(err&&err.message?errMsg(err.message):t('t.fileUnreadable'))}
+}
+function importMusicXml(text,name){
+  const res=parseMusicXml(text);
+  stopPlay();resetHistory();
+  if(res.ts&&METERS.includes(res.ts[0]+'/'+res.ts[1]))state.meter=res.ts[0]+'/'+res.ts[1];
+  if(res.tempo)state.bpm=Math.max(30,Math.min(240,Math.round(60000000/res.tempo)));
+  state.key=res.key!=null&&res.key>=-7&&res.key<=7?res.key:0;
+  state.inst='piano';
+  const r=importToStaves(res,btNow(),state.key);
+  state.nS=r.n;
+  state.staves=[r.staves[0],r.staves[1]||{clef:'bass',events:[]}];
+  state.as=0;state.cur=state.staves[0].events.length;
+  state.title=name.replace(/\.[^.]+$/,'').slice(0,60)||t('t.loadedTitleFallback');
+  state.kbOct=CLEFS[state.staves[0].clef].kbOct;
+  buildKeys();render();
+  toast(t('t.loaded',{staves:r.n===2?t('t.loadedTwoStaves'):t('t.loadedOneStaff'),n:r.staves.reduce((a,s)=>a+s.events.length,0)}));
 }
 $('fileIn').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(f)openFile(f)});
 const sheetEl=document.querySelector('.sheet');

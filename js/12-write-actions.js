@@ -152,13 +152,54 @@ function togglePedal(){
 }
 function clearMarks(){
   const mk=markTargets();if(!mk.length)return;
-  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se;delete e.pd;delete e.pu});render();
+  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se;delete e.pd;delete e.pu;delete e.lyr;delete e.chord;delete e.ferm;delete e.trill;delete e.mord;delete e.cr;delete e.crEnd;delete e.dim;delete e.dimEnd});render();
 }
 function setRehearsalMark(letter){
   const mk=(letter||'').replace(/[^A-Za-z0-9]/g,'').slice(0,2);
   const mkTargets=markTargets();if(!mkTargets.length){toast(t('t.writeOrSelectFirst'));return}
   stopPlay();rec();const f=mkTargets[0];
   if(!mk||f.mk===mk)delete f.mk;else f.mk=mk;
+  render();
+}
+function toggleFermata(){
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(f.ferm)delete f.ferm;else f.ferm=1;
+  render();
+}
+function toggleTrill(){
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(f.trill)delete f.trill;else f.trill=1;
+  render();
+}
+function toggleMordent(){
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(f.mord)delete f.mord;else f.mord=1;
+  render();
+}
+function toggleHairpin(dir){
+  const startF=dir==='cr'?'cr':'dim',endF=dir==='cr'?'crEnd':'dimEnd';
+  const r=selRange();if(!r||r[1]===r[0]){toast(t('t.selectMoreForSlur'));return}
+  const ns=[];for(let i=r[0];i<=r[1];i++)if(!EV()[i].r)ns.push(EV()[i]);
+  if(ns.length<2){toast(t('t.needTwoNotes'));return}
+  stopPlay();rec();const a=ns[0],b=ns[ns.length-1];
+  if(a[startF]&&b[endF]){delete a[startF];delete b[endF]}else{a[startF]=1;b[endF]=1}
+  render();
+}
+function setLyric(text){
+  const v=(text||'').trim().slice(0,20);
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(!v)delete f.lyr;else f.lyr=v;
+  render();
+}
+function setChord(text){
+  const v=(text||'').trim().slice(0,10);
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(!v)delete f.chord;else f.chord=v;
   render();
 }
 function selectAll(){const n=EV().length;if(!n)return;stopPlay();state.sel=0;state.selEnd=n-1;state.selN=-1;state.cur=n;render()}

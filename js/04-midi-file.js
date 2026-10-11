@@ -237,6 +237,81 @@ function staffFromNotes(ns, o) {
   });
   return ev;
 }
+const MUSICXML_STEP_SEMI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function parseMusicXml(text) {
+  // legge un file MusicXML non compresso (<score-partwise>): produce lo stesso formato di parseMidi,
+  // così può passare per importToStaves. Non gestisce .mxl compresso, né più di due parti/voci.
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.querySelector("parsererror")) throw new Error("ERR_NOT_MIDI_OR_PROJECT");
+  const scoreEl = doc.querySelector("score-partwise");
+  if (!scoreEl) throw new Error("ERR_NOT_MIDI_OR_PROJECT");
+  const partIds = [...doc.querySelectorAll("part-list score-part")].map((p) =>
+    p.getAttribute("id"),
+  );
+  const partEls = partIds
+    .map((id) => doc.querySelector(`part[id="${CSS.escape(id)}"]`))
+    .filter(Boolean)
+    .slice(0, 2);
+  const notes = [];
+  let div = 1,
+    ts = null,
+    key = null,
+    tempo = null;
+  partEls.forEach((partEl, tr) => {
+    let t = 0,
+      lastStart = 0;
+    for (const meas of partEl.querySelectorAll("measure")) {
+      for (const el of meas.children) {
+        const tag = el.tagName;
+        if (tag === "attributes") {
+          const d = el.querySelector("divisions");
+          if (d) div = +d.textContent || div;
+          const fifths = el.querySelector("key fifths");
+          if (fifths && key == null)
+            key = Math.max(-7, Math.min(7, Math.round(+fifths.textContent)));
+          const beats = el.querySelector("time beats"),
+            beatType = el.querySelector("time beat-type");
+          if (beats && beatType && !ts) ts = [+beats.textContent, +beatType.textContent];
+        } else if (tag === "sound") {
+          const bpm = el.getAttribute("tempo");
+          if (bpm && !tempo) tempo = 60000000 / +bpm;
+        } else if (tag === "direction") {
+          const mm = el.querySelector("sound[tempo]");
+          if (mm && !tempo) tempo = 60000000 / +mm.getAttribute("tempo");
+        } else if (tag === "backup") {
+          const d = el.querySelector("duration");
+          t -= d ? +d.textContent || 0 : 0;
+        } else if (tag === "forward") {
+          const d = el.querySelector("duration");
+          t += d ? +d.textContent || 0 : 0;
+        } else if (tag === "note") {
+          const isChord = !!el.querySelector("chord"),
+            isRest = !!el.querySelector("rest"),
+            durEl = el.querySelector("duration"),
+            dur = durEl ? +durEl.textContent || 0 : 0;
+          const pitch = el.querySelector("pitch");
+          if (isRest || !pitch) {
+            if (!isChord) t += dur;
+            continue;
+          }
+          const step = pitch.querySelector("step").textContent,
+            alterEl = pitch.querySelector("alter"),
+            alter = alterEl ? Math.max(-1, Math.min(1, Math.round(+alterEl.textContent))) : 0,
+            oct = +pitch.querySelector("octave").textContent;
+          const m = (oct + 1) * 12 + MUSICXML_STEP_SEMI[step] + alter;
+          const start = isChord ? lastStart : t;
+          notes.push({ s: start, e: start + Math.max(1, dur), m, tr });
+          if (!isChord) {
+            lastStart = t;
+            t += dur;
+          }
+        }
+      }
+    }
+  });
+  if (!notes.length) throw new Error("ERR_MIDI_NO_NOTES");
+  return { notes, div, ts, tempo, key, prog: 0 };
+}
 function importToStaves(res, bt, key) {
   // un MIDI diventa uno o due pentagrammi
   const sc = PPQ / res.div,

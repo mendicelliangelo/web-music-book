@@ -284,7 +284,10 @@ html.handwritten text.dyn,
 html.handwritten text.mnum,
 html.handwritten text.rehearsal,
 html.handwritten text.ped,
-html.handwritten text.notename {
+html.handwritten text.notename,
+html.handwritten text.lyr,
+html.handwritten text.chordsym,
+html.handwritten text.orn {
   font-family: "Caveat", var(--serif);
 }
 .ev {
@@ -320,6 +323,22 @@ html.handwritten text.notename {
   pointer-events: none;
 }
 .dyn {
+  fill: currentColor;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 700;
+}
+.lyr {
+  fill: currentColor;
+  font-family: var(--ui);
+  font-weight: 500;
+}
+.chordsym {
+  fill: var(--accent);
+  font-family: var(--ui);
+  font-weight: 700;
+}
+.orn {
   fill: currentColor;
   font-family: var(--serif);
   font-style: italic;

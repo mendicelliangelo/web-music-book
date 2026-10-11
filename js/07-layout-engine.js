@@ -1,6 +1,11 @@
 "use strict";
 /* ---------- 6. Impaginazione e disegno del pentagramma ---------- */
 const f1 = (n) => Math.round(n * 100) / 100;
+const escXml = (s) =>
+  // dentro al testo di un elemento SVG servono solo queste tre fughe (le virgolette non vanno
+  // sfuggite qui: lo richiederebbe solo un valore di attributo, e romperebbero il testo nel PDF,
+  // che riconosce come entità solo &amp; in svgShapes di 08-pdf-writer.js)
+  String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 const tf = (x, y, k) => `translate(${f1(x)} ${f1(y)}) scale(${k.toFixed(4)})`;
 function headSVG(cx, cy, v, S, color) {
   const c = `cx="${f1(cx)}" cy="${f1(cy)}"`,
@@ -298,7 +303,9 @@ function buildLayout(staves, o) {
       let mn = 0,
         mx = 8,
         hasDy = false,
-        hasSl = false;
+        hasSl = false,
+        hasLyr = false,
+        hasChord = false;
       for (const c of sy.items) {
         const idx = c.ev[k];
         if (idx < 0) continue;
@@ -307,6 +314,8 @@ function buildLayout(staves, o) {
         if (e.r) continue;
         if (e.dy) hasDy = true;
         if (e.sl || e.se) hasSl = true;
+        if (e.lyr) hasLyr = true;
+        if (e.chord) hasChord = true;
         const g = X[k].geo[idx];
         mn = Math.min(mn, g.pos[0]);
         mx = Math.max(mx, g.pos[g.pos.length - 1]);
@@ -314,19 +323,27 @@ function buildLayout(staves, o) {
       const lowExt = -mn * H;
       let dynOff = Math.max(S * 3.9, lowExt + S * 2.6);
       if (hasSl) dynOff = Math.max(dynOff, lowExt + S * 3.7);
-      const above = Math.max(
-        k ? S * 4.4 : S * 5.2,
-        (mx - 8) * H + S * 2.2,
-        hasSl ? (mx - 8) * H + S * 3.9 : 0,
-      );
-      const below = Math.max(
-          S * 3.8,
-          lowExt + S * 2.4,
-          hasSl ? lowExt + S * 3.9 : 0,
-          hasDy ? dynOff + S * 1.5 : 0,
-        ),
+      const above =
+        Math.max(
+          k ? S * 4.4 : S * 5.2,
+          (mx - 8) * H + S * 2.2,
+          hasSl ? (mx - 8) * H + S * 3.9 : 0,
+        ) + (hasChord ? S * 2.6 : 0);
+      const below =
+          Math.max(
+            S * 3.8,
+            lowExt + S * 2.4,
+            hasSl ? lowExt + S * 3.9 : 0,
+            hasDy ? dynOff + S * 1.5 : 0,
+          ) + (hasLyr ? S * 2.6 : 0),
         yTop = y + above;
-      sy.staff.push({ yTop, yBot: yTop + 4 * S, dynY: yTop + 4 * S + dynOff });
+      sy.staff.push({
+        yTop,
+        yBot: yTop + 4 * S,
+        dynY: yTop + 4 * S + dynOff,
+        chordY: yTop - S * 2,
+        lyrY: yTop + 4 * S + below - S * 0.8,
+      });
       y = yTop + 4 * S + below;
     }
     sy.top = top;
@@ -580,6 +597,10 @@ function staffSVG(k, sy, si, L, st, pts) {
       }
       if (e.dy)
         g += `<text class="dyn" x="${f1(c.cx)}" y="${f1(sf.dynY)}" font-size="${f1(S * 1.6)}" text-anchor="middle">${e.dy}</text>`;
+      if (e.lyr)
+        g += `<text class="lyr" x="${f1(c.cx)}" y="${f1(sf.lyrY)}" font-size="${f1(S * 1.6)}" text-anchor="middle">${escXml(e.lyr)}</text>`;
+      if (e.chord)
+        g += `<text class="chordsym" x="${f1(c.cx)}" y="${f1(sf.chordY)}" font-size="${f1(S * 1.7)}" text-anchor="middle">${escXml(e.chord)}</text>`;
       if (e.v !== "w") {
         const fl = FLAGS[e.v];
         let tip;
@@ -743,6 +764,68 @@ function renderSVG(staves, L, st) {
         const ys = g.q.map(ext),
           ex = dir === 1 ? Math.max(...ys) : Math.min(...ys);
         o += slurSVG(x1, ext(g.q[0]), x2, ext(g.q[g.q.length - 1]), ex, dir, S);
+      });
+    });
+  }
+  for (let k = 0; k < nS; k++) {
+    staves[k].events.forEach((e, i) => {
+      if (!e.ferm && !e.trill && !e.mord) return;
+      const p = pts[k][i];
+      if (!p) return;
+      const x = p.hx[0],
+        yTop = Math.min(...p.ys) - S * 2.6;
+      if (e.ferm)
+        o += `<path d="M${f1(x - S * 0.65)} ${f1(yTop)} A${f1(S * 0.65)} ${f1(S * 0.65)} 0 0 1 ${f1(x + S * 0.65)} ${f1(yTop)}" stroke="currentColor" stroke-width="${f1(S * 0.14)}" fill="none"/><circle cx="${f1(x)}" cy="${f1(yTop - S * 0.65)}" r="${f1(S * 0.12)}" fill="currentColor"/>`;
+      else if (e.trill)
+        o += `<text class="orn" x="${f1(x)}" y="${f1(yTop)}" font-size="${f1(1.7 * S)}" text-anchor="middle">tr</text>`;
+      else if (e.mord) {
+        const w = S * 0.3;
+        o += `<path d="M${f1(x - 2 * w)} ${f1(yTop)}L${f1(x - w)} ${f1(yTop - S * 0.6)}L${f1(x)} ${f1(yTop)}L${f1(x + w)} ${f1(yTop - S * 0.6)}L${f1(x + 2 * w)} ${f1(yTop)}" stroke="currentColor" stroke-width="${f1(S * 0.12)}" fill="none"/>`;
+      }
+    });
+  }
+  for (let k = 0; k < nS; k++) {
+    const ev = staves[k].events;
+    [
+      ["cr", "crEnd"],
+      ["dim", "dimEnd"],
+    ].forEach(([startF, endF]) => {
+      ev.forEach((e, i) => {
+        if (e.r || !e[startF]) return;
+        let j = -1;
+        for (let q = i + 1; q < ev.length; q++) {
+          if (ev[q][endF]) {
+            j = q;
+            break;
+          }
+          if (ev[q][startF]) break;
+        }
+        if (j < 0) return;
+        const idx = [];
+        for (let q = i; q <= j; q++) if (pts[k][q]) idx.push(q);
+        if (idx.length < 2) return;
+        const groups = [];
+        idx.forEach((q) => {
+          const sy = pts[k][q].sys,
+            g = groups[groups.length - 1];
+          if (g && g.sys === sy) g.q.push(q);
+          else groups.push({ sys: sy, q: [q] });
+        });
+        groups.forEach((g, gi) => {
+          const a = pts[k][g.q[0]],
+            b = pts[k][g.q[g.q.length - 1]],
+            sf = L.systems[g.sys].staff[k],
+            yc = sf.yBot + S * 2,
+            hw = S * 0.75;
+          const x1 = gi === 0 ? a.hx[0] : L.systems[g.sys].x0 - S * 0.4,
+            x2 = gi === groups.length - 1 ? b.hx[0] : L.R - S * 0.3;
+          const open = startF === "cr";
+          const y1a = yc - (open ? 0 : hw),
+            y1b = yc + (open ? 0 : hw),
+            y2a = yc - (open ? hw : 0),
+            y2b = yc + (open ? hw : 0);
+          o += `<path d="M${f1(x1)} ${f1(y1a)}L${f1(x2)} ${f1(y2a)}M${f1(x1)} ${f1(y1b)}L${f1(x2)} ${f1(y2b)}" stroke="currentColor" stroke-width="${f1(S * 0.12)}" fill="none"/>`;
+        });
       });
     });
   }

@@ -83,6 +83,8 @@ function startPlay(){
     if(m.mute||(anySolo&&!m.solo))return;
     const vol=m.vol==null?1:m.vol;
     let staffNotes=applyPedal(flattenNotes(s.events),pedalSpans(s.events));
+    staffNotes=applyFermata(staffNotes,fermataTicks(s.events));
+    staffNotes=applyHairpins(staffNotes,hairpinSpans(s.events));
     if(state.swing)staffNotes=applySwing(staffNotes,beatTicksOf(state.meter));
     staffNotes.forEach(n=>notes.push({...n,v:Math.max(0,Math.min(127,Math.round(n.v*vol))),k}));
   });

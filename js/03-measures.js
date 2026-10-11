@@ -76,7 +76,7 @@ function resplitEvents(events, bt) {
           last.n.forEach((n, j) => {
             if (e.n[j] && e.n[j].t) n.t = 1;
           });
-          ["dy", "st", "ac", "sl", "mk", "pd", "pu"].forEach((f) => {
+          ["dy", "st", "ac", "sl", "mk", "pd", "pu", "lyr", "chord", "ferm", "trill", "mord", "cr", "crEnd", "dim", "dimEnd"].forEach((f) => {
             if (e[f]) pcs[0][f] = e[f];
           });
           if (e.se) last.se = 1;
@@ -157,6 +157,57 @@ function applySwing(notes, beatTicks) {
     return n;
   });
 }
+function fermataTicks(events) {
+  let t = 0;
+  const ticks = [];
+  for (const e of events) {
+    const tk = evTicks(e);
+    if (!e.r && e.ferm) ticks.push(t);
+    t += tk;
+  }
+  return ticks;
+}
+function applyFermata(notes, ticks) {
+  // la nota con la corona dura circa una volta e mezza, solo in ascolto
+  if (!ticks.length) return notes;
+  const set = new Set(ticks);
+  return notes.map((n) => (set.has(n.s) ? { ...n, l: Math.round(n.l * 1.7) } : n));
+}
+function hairpinSpans(events) {
+  let t = 0,
+    openCr = null,
+    openDim = null;
+  const spans = [];
+  for (const e of events) {
+    const tk = evTicks(e);
+    if (!e.r) {
+      if (e.cr && openCr == null) openCr = t;
+      if (e.crEnd && openCr != null) {
+        spans.push([openCr, t + tk, "cr"]);
+        openCr = null;
+      }
+      if (e.dim && openDim == null) openDim = t;
+      if (e.dimEnd && openDim != null) {
+        spans.push([openDim, t + tk, "dim"]);
+        openDim = null;
+      }
+    }
+    t += tk;
+  }
+  return spans;
+}
+function applyHairpins(notes, spans) {
+  // forcella di crescendo/diminuendo: rampa di velocità lineare sulle note nell'intervallo
+  if (!spans.length) return notes;
+  return notes.map((n) => {
+    const sp = spans.find(([a, b]) => n.s >= a && n.s < b);
+    if (!sp) return n;
+    const [a, b, dir] = sp,
+      frac = (n.s - a) / Math.max(1, b - a),
+      mul = dir === "cr" ? 0.72 + 0.5 * frac : 1.22 - 0.5 * frac;
+    return { ...n, v: Math.max(10, Math.min(127, Math.round(n.v * mul))) };
+  });
+}
 function applyPedal(notes, spans) {
   // mentre il pedale è giù, le note suonate continuano a risuonare fino al rilascio
   if (!spans.length) return notes;
@@ -201,6 +252,15 @@ function cleanEvents(a) {
       if (typeof e.mk === "string" && /^[A-Za-z0-9]{1,2}$/.test(e.mk)) x.mk = e.mk;
       if (e.pd) x.pd = 1;
       if (e.pu) x.pu = 1;
+      if (typeof e.lyr === "string" && e.lyr.trim()) x.lyr = e.lyr.trim().slice(0, 20);
+      if (typeof e.chord === "string" && e.chord.trim()) x.chord = e.chord.trim().slice(0, 10);
+      if (e.ferm) x.ferm = 1;
+      if (e.trill) x.trill = 1;
+      if (e.mord) x.mord = 1;
+      if (e.cr) x.cr = 1;
+      if (e.crEnd) x.crEnd = 1;
+      if (e.dim) x.dim = 1;
+      if (e.dimEnd) x.dimEnd = 1;
       out.push(x);
     }
   }

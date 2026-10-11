@@ -76,6 +76,13 @@ $('btnCut').addEventListener('click',e=>{copySel(true);blurIfMouse(e)});
 $('btnPaste').addEventListener('click',e=>{pasteClip();blurIfMouse(e)});
 $('btnRepeatBar').addEventListener('click',e=>{repeatMeasure();blurIfMouse(e)});
 $('btnPedal').addEventListener('click',e=>{togglePedal();blurIfMouse(e)});
+$('btnFermata').addEventListener('click',e=>{toggleFermata();blurIfMouse(e)});
+$('btnTrill').addEventListener('click',e=>{toggleTrill();blurIfMouse(e)});
+$('btnMordent').addEventListener('click',e=>{toggleMordent();blurIfMouse(e)});
+$('btnCresc').addEventListener('click',e=>{toggleHairpin('cr');blurIfMouse(e)});
+$('btnDim').addEventListener('click',e=>{toggleHairpin('dim');blurIfMouse(e)});
+$('btnLyric').addEventListener('click',e=>{setLyric($('lyrText').value);$('lyrText').value='';blurIfMouse(e)});
+$('btnChord').addEventListener('click',e=>{setChord($('chordText').value);$('chordText').value='';blurIfMouse(e)});
 $('btnOver').addEventListener('click',e=>{toggleOver();blurIfMouse(e)});
 
 /* tasti del pianoforte: pressione e rilascio servono alla registrazione; da tastiera del computer basta un clic */
@@ -137,6 +144,7 @@ $('octDown').addEventListener('click',()=>setOct(state.kbOct-1));
 $('octUp').addEventListener('click',()=>setOct(state.kbOct+1));
 $('btnRec').addEventListener('click',e=>{recS.on?stopRec():startRec();blurIfMouse(e)});
 $('btnMidi').addEventListener('click',e=>{connectMidi();blurIfMouse(e)});
+$('btnMicRec').addEventListener('click',e=>{toggleMicRec();blurIfMouse(e)});
 
 function onClefChange(k,v){stopPlay();state.staves[k].clef=v;if(k===state.as){state.kbOct=CLEFS[v].kbOct;buildKeys()}render()}
 $('clef0').addEventListener('change',e=>onClefChange(0,e.target.value));
