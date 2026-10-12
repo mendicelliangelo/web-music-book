@@ -3,9 +3,12 @@
 let lay=null,svgEl=null,ghost=null;
 function render(){
   const box=$('score'),W=Math.max(300,Math.floor(box.clientWidth||900)),S=(W<520?10:12)*(state.zoom||1);
-  lay=buildLayout(state.staves,{width:W,S,meter:state.meter,key:state.key,nS:state.nS,as:state.as,cur:state.cur});
-  box.innerHTML=renderSVG(state.staves,lay,{meter:state.meter,as:state.as,sel:state.sel,selEnd:state.selEnd,selN:state.selN,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors});
+  const instTr=instOf().transpose||0,dispKey=instTr?keyAfterTranspose(state.key,instTr):state.key;
+  const dispStaves=instTr?state.staves.map(s=>({...s,events:transposeEventsInKey(s.events,instTr,dispKey)||s.events})):state.staves;
+  lay=buildLayout(dispStaves,{width:W,S,meter:state.meter,key:dispKey,nS:state.nS,as:state.as,cur:state.cur});
+  box.innerHTML=renderSVG(dispStaves,lay,{meter:state.meter,as:state.as,sel:state.sel,selEnd:state.selEnd,selN:state.selN,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors});
   svgEl=box.firstElementChild;ghost=svgEl.querySelector('#ghost');
+  $('instTrNote').textContent=instTr?t('settings.transposingNote',{key:keyNameFor(dispKey)}):'';
   applyPlayClass();updateChrome();save();updatePop();
   if(document.body.classList.contains('mob')&&!play.on)ensureVisible(svgEl.querySelector('.ev.sel')||svgEl.querySelector('.caret'));
 }
@@ -81,7 +84,17 @@ function buildStatic(){
   $('themeSel').innerHTML=`<option value="system">${t('app.themeSystem')}</option><option value="light">${t('app.themeLight')}</option><option value="dark">${t('app.themeDark')}</option>`;
   $('themeSel').value=(()=>{try{return localStorage.getItem('quaderno-musica-theme')||'system'}catch(_){return'system'}})();
   $('measureNumEvery').innerHTML=[0,1,2,4,8].map(n=>`<option value="${n}">${n===0?t('settings.measureNumOff'):n===1?t('settings.measureNumEach'):t('settings.measureNumN',{n})}</option>`).join('');
+  buildEarAnswers();
+  buildShortcutsUI();
   drawPlayBtn();
+}
+const SHORTCUT_LABEL_KEYS={rest:'palette.rest',over:'palette.over',staccato:'dyn.stac',slur:'dyn.slur',tie:'palette.tie',dot:'palette.dot',sharp:'palette.sharp',flat:'palette.flat',natural:'palette.natural',accent:'dyn.acc'};
+const escHtmlLocal=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+function keyDisplay(k){return k===' '?t('settings.shortcutSpace'):k}
+function buildShortcutsUI(){
+  $('shortcutsBox').innerHTML=SHORTCUT_IDS.map(id=>
+    `<div class="tools sc-row"><span>${t(SHORTCUT_LABEL_KEYS[id])}</span><button class="tool" type="button" data-sc="${id}">${escHtmlLocal(keyDisplay(state.keymap[id]))}</button></div>`
+  ).join('');
 }
 const QUANT_GRID=DURS.map(d=>({id:d.id,ticks:d.ticks,frac:d.frac}));
 /* ---------- menu laterale: compare accanto a ciò che è selezionato ---------- */

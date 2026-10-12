@@ -38,7 +38,9 @@ $('btnExport').addEventListener('click',async()=>{
 $('btnPdf').addEventListener('click',async()=>{
   stopPlay();if(recS.on)stopRec();
   if(!visible().some(s=>s.events.length)){toast(t('t.emptySheet'));return}
-  const pdf=buildPdf(visible(),{meter:state.meter,key:state.key,nS:state.nS,bpm:state.bpm,title:state.title});
+  const instTr=instOf().transpose||0,pdfKey=instTr?keyAfterTranspose(state.key,instTr):state.key;
+  const pdfStaves=instTr?visible().map(s=>({...s,events:transposeEventsInKey(s.events,instTr,pdfKey)||s.events})):visible();
+  const pdf=buildPdf(pdfStaves,{meter:state.meter,key:pdfKey,nS:state.nS,bpm:state.bpm,title:state.title});
   await saveFile((slugify(state.title)||'brano')+'.pdf',pdf);
 });
 $('btnExportImg').addEventListener('click',async()=>{

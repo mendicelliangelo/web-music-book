@@ -122,11 +122,13 @@ function detectPitch(buf,sampleRate){
   const freq=sampleRate/T0;
   return freq>60&&freq<1500?freq:null;
 }
-const mic={stream:null,analyser:null,raf:0,lastMidi:null};
+const mic={stream:null,analyser:null,timer:0,lastMidi:null};
 function micLoop(){
+  // setInterval invece di requestAnimationFrame: deve continuare a girare anche se la scheda perde il focus
   const buf=new Float32Array(mic.analyser.fftSize);
-  const step=()=>{
+  mic.timer=setInterval(()=>{
     if(!mic.stream)return;
+    if(!recS.on||recS.phase!=='rec'){mic.lastMidi=null;return}   // durante il conto alla rovescia non segna ancora nulla
     mic.analyser.getFloatTimeDomainData(buf);
     const freq=detectPitch(buf,synth.ac.sampleRate),now=performance.now();
     if(freq){
@@ -136,12 +138,10 @@ function micLoop(){
         noteOn(midi,now);mic.lastMidi=midi;
       }
     }else if(mic.lastMidi!=null){noteOff(mic.lastMidi,now);mic.lastMidi=null}
-    mic.raf=requestAnimationFrame(step);
-  };
-  step();
+  },40);
 }
 function stopMic(){
-  if(mic.raf)cancelAnimationFrame(mic.raf);mic.raf=0;
+  if(mic.timer)clearInterval(mic.timer);mic.timer=0;
   if(mic.lastMidi!=null){try{noteOff(mic.lastMidi,performance.now())}catch(_){}mic.lastMidi=null}
   if(mic.stream){mic.stream.getTracks().forEach(tr=>tr.stop());mic.stream=null}
   $('btnMicRec').setAttribute('aria-pressed','false');

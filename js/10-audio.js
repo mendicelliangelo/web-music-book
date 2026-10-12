@@ -32,6 +32,51 @@ function waveOf(inst){
   }
   return synth.waves[inst.id];
 }
+/* Allenamento all'ascolto: intervalli e accordi suonati a caso, da riconoscere a orecchio. */
+const EAR_INTERVALS=[
+  {semi:1,key:'m2'},{semi:2,key:'M2'},{semi:3,key:'m3'},{semi:4,key:'M3'},
+  {semi:5,key:'P4'},{semi:6,key:'TT'},{semi:7,key:'P5'},{semi:8,key:'m6'},
+  {semi:9,key:'M6'},{semi:10,key:'m7'},{semi:11,key:'M7'},{semi:12,key:'P8'},
+];
+const EAR_CHORDS=[{q:'maj',key:'maj'},{q:'m',key:'min'},{q:'dim',key:'dim'},{q:'aug',key:'aug'}];
+const ear={mode:'interval',answer:null,root:60,score:0,total:0};
+function earChordAbsTones(root,q){
+  const third=q==='maj'||q==='aug'?4:3,fifth=q==='dim'?6:q==='aug'?8:7;
+  return[root,root+third,root+fifth];
+}
+function earPlayPrompt(){
+  const ac=audio();if(!ac){toast(t('t.noAudio'));return}
+  const inst=instOf();
+  if(ear.mode==='interval'){
+    tone(ear.root,ac.currentTime+.1,.8,inst,95);
+    tone(ear.root+ear.answer,ac.currentTime+1,.8,inst,95);
+  }else{
+    earChordAbsTones(ear.root,ear.answer).forEach(m=>tone(m,ac.currentTime+.1,1.2,inst,90));
+  }
+}
+function buildEarAnswers(){
+  const items=ear.mode==='interval'?EAR_INTERVALS:EAR_CHORDS;
+  $('earAnswers').innerHTML=items.map(it=>`<button class="tool" type="button" data-v="${ear.mode==='interval'?it.semi:it.q}">${t('ear.'+it.key)}</button>`).join('');
+}
+function earAnswerKey(){
+  if(ear.mode==='interval'){const it=EAR_INTERVALS.find(x=>x.semi===ear.answer);return it?it.key:''}
+  const c=EAR_CHORDS.find(x=>x.q===ear.answer);return c?c.key:'';
+}
+function earNew(){
+  ear.mode=$('earMode').value;
+  ear.root=48+Math.floor(Math.random()*13);
+  if(ear.mode==='interval')ear.answer=EAR_INTERVALS[Math.floor(Math.random()*EAR_INTERVALS.length)].semi;
+  else ear.answer=EAR_CHORDS[Math.floor(Math.random()*EAR_CHORDS.length)].q;
+  buildEarAnswers();$('earFeedback').textContent='';
+  earPlayPrompt();
+}
+function earCheck(v){
+  if(ear.answer==null)return;
+  const correct=ear.mode==='interval'?+v===ear.answer:v===ear.answer;
+  ear.total++;if(correct)ear.score++;
+  $('earFeedback').textContent=correct?t('ear.correct'):t('ear.wrong',{name:t('ear.'+earAnswerKey())});
+  $('earScore').textContent=t('ear.score',{score:ear.score,total:ear.total});
+}
 const voices=[];
 function tone(midi,t,dur,inst,vel,pan){
   const ac=synth.ac,f=440*Math.pow(2,(midi-69)/12);

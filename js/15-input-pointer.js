@@ -145,6 +145,13 @@ $('octUp').addEventListener('click',()=>setOct(state.kbOct+1));
 $('btnRec').addEventListener('click',e=>{recS.on?stopRec():startRec();blurIfMouse(e)});
 $('btnMidi').addEventListener('click',e=>{connectMidi();blurIfMouse(e)});
 $('btnMicRec').addEventListener('click',e=>{toggleMicRec();blurIfMouse(e)});
+$('earMode').addEventListener('change',()=>{buildEarAnswers();$('earFeedback').textContent=''});
+$('earNewBtn').addEventListener('click',e=>{earNew();blurIfMouse(e)});
+$('earReplayBtn').addEventListener('click',e=>{earPlayPrompt();blurIfMouse(e)});
+$('earAnswers').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-v]');if(!b)return;
+  earCheck(b.getAttribute('data-v'));blurIfMouse(e);
+});
 
 function onClefChange(k,v){stopPlay();state.staves[k].clef=v;if(k===state.as){state.kbOct=CLEFS[v].kbOct;buildKeys()}render()}
 $('clef0').addEventListener('change',e=>onClefChange(0,e.target.value));
@@ -235,16 +242,16 @@ document.addEventListener('keydown',e=>{
   }
   if(L>=0){e.preventDefault();enterLetter(L,e.shiftKey);return}
   if(k>='1'&&k<='6'){setDur(DURS[+k-1].id);return}
-  if(k==='.'){toggleDot();return}
-  if(k==='+'||k==='#'){setAcc(1);return}
-  if(k==='-'||k==='_'){setAcc(-1);return}
-  if(k==='='){setAcc(0);return}
-  if(k==='r'||k==='R'){addRest();return}
-  if(k==='o'||k==='O'){toggleOver();return}
-  if(k==='s'||k==='S'){toggleMark('st');return}
-  if(k==='>'){toggleMark('ac');return}
-  if(k==='l'||k==='L'){toggleSlur();return}
-  if(k==='t'||k==='T'){toggleTie();return}
+  if(matchesShortcut(k,'dot')){toggleDot();return}
+  if(matchesShortcut(k,'sharp')||k==='#'){setAcc(1);return}
+  if(matchesShortcut(k,'flat')||k==='_'){setAcc(-1);return}
+  if(matchesShortcut(k,'natural')){setAcc(0);return}
+  if(matchesShortcut(k,'rest')){addRest();return}
+  if(matchesShortcut(k,'over')){toggleOver();return}
+  if(matchesShortcut(k,'staccato')){toggleMark('st');return}
+  if(matchesShortcut(k,'accent')){toggleMark('ac');return}
+  if(matchesShortcut(k,'slur')){toggleSlur();return}
+  if(matchesShortcut(k,'tie')){toggleTie();return}
   if(k==='Backspace'){e.preventDefault();delBack();return}
   if(k==='Delete'){e.preventDefault();delFwd();return}
   if(k==='Escape'){if(state.sel>=0)deselect();return}
@@ -262,4 +269,27 @@ document.addEventListener('keydown',e=>{
   }
   if(k==='Home'){state.cur=0;state.sel=-1;state.selN=-1;render();return}
   if(k==='End'){state.cur=EV().length;state.sel=-1;state.selN=-1;render()}
+});
+/* Scorciatoie personalizzabili: clic su un tasto nel pannello, poi premi il nuovo tasto da assegnare. */
+let scListening=null;
+$('shortcutsBox').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-sc]');if(!b)return;
+  scListening=b.getAttribute('data-sc');
+  document.querySelectorAll('#shortcutsBox button.listening').forEach(x=>x.classList.remove('listening'));
+  b.classList.add('listening');b.textContent=t('settings.shortcutListening');
+});
+document.addEventListener('keydown',e=>{
+  if(!scListening)return;
+  e.preventDefault();e.stopPropagation();
+  const id=scListening,k=e.key;
+  if(k==='Escape'){scListening=null;buildShortcutsUI();return}
+  const lower=k.length===1?k.toLowerCase():k;
+  const clash='cdefgab'.includes(lower)||SHORTCUT_IDS.some(other=>other!==id&&matchesShortcut(k,other));
+  if(clash){toast(t('t.shortcutTaken'));scListening=null;buildShortcutsUI();return}
+  state.keymap[id]=k;saveKeymap();scListening=null;buildShortcutsUI();
+  toast(t('t.shortcutSet'));
+},true);
+$('btnShortcutsReset').addEventListener('click',e=>{
+  SHORTCUT_IDS.forEach(id=>{state.keymap[id]={rest:'r',over:'o',staccato:'s',slur:'l',tie:'t',dot:'.',sharp:'+',flat:'-',natural:'=',accent:'>'}[id]});
+  saveKeymap();buildShortcutsUI();blurIfMouse(e);
 });

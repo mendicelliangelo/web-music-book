@@ -154,6 +154,7 @@ const INSTRUMENTS = [
     dk: 4,
     ft: 0.2,
     lv: 0.9,
+    transpose: 2, // clarinetto in Si♭: scritto un tono sopra il suono reale
   },
   {
     id: "guitar",

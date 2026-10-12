@@ -9,6 +9,7 @@ const exampleEvents=()=>[
   N(30,'q'),N(30,'q'),N(31,'q'),N(32,'q'), N(32,'q'),N(31,'q'),N(30,'q'),N(29,'q'),
   N(28,'q'),N(28,'q'),N(29,'q'),N(30,'q'), N(29,'q',1),N(28,'e'),N(28,'h')];
 const state={title:t('sheet.exampleTitle'),meter:'4/4',bpm:108,inst:'piano',key:0,nS:1,zoom:1,measureNumEvery:0,noteNames:false,noteColors:false,staffColors:false,playbackRate:1,loopSel:false,swing:false,stereoStaves:false,reverb:0,handwritten:false,
+  keymap:{rest:'r',over:'o',staccato:'s',slur:'l',tie:'t',dot:'.',sharp:'+',flat:'-',natural:'=',accent:'>'},
   staveMix:[{mute:false,solo:false,vol:1},{mute:false,solo:false,vol:1}],
   staves:[{clef:'treble',events:exampleEvents()},{clef:'bass',events:[]}],
   as:0,cur:0,sel:-1,selEnd:-1,selN:-1,clip:null,tool:{dur:'q',dot:false,acc:null,chord:false,over:false,timed:false,pc:false,pcLayout:'tracker'},kbOct:4};
@@ -67,6 +68,18 @@ function save(){
   }catch(_){}
 })();
 state.kbOct=CLEFS[state.staves[state.as].clef].kbOct;
+const SHORTCUT_IDS=['rest','over','staccato','slur','tie','dot','sharp','flat','natural','accent'];
+(function loadKeymap(){
+  try{
+    const v=JSON.parse(localStorage.getItem('quaderno-musica-keymap')||'null');
+    if(v)SHORTCUT_IDS.forEach(id=>{if(typeof v[id]==='string'&&v[id])state.keymap[id]=v[id]});
+  }catch(_){}
+})();
+function saveKeymap(){try{localStorage.setItem('quaderno-musica-keymap',JSON.stringify(state.keymap))}catch(_){}}
+function matchesShortcut(k,id){
+  const want=state.keymap[id];
+  return k.length===1&&want.length===1?k.toLowerCase()===want.toLowerCase():k===want;
+}
 
 /* annulla / ripristina */
 const hist=[],redoS=[];

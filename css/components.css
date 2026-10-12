@@ -474,6 +474,14 @@ html.handwritten text.orn {
     transform: scale(1);
   }
 }
+.sc-row {
+  justify-content: space-between;
+  align-items: center;
+}
+.sc-row button.listening {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .tpl-ctl > span {
   text-transform: none;
   letter-spacing: normal;

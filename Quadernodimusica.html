@@ -229,6 +229,7 @@
           </div>
         </div>
         <label class="field"><span data-i18n="settings.instrument">Strumento</span><select id="inst"></select></label>
+        <p class="hint" id="instTrNote" role="status"></p>
         <label class="field"><span data-i18n="settings.measureNum">Numeri di battuta</span><select id="measureNumEvery"></select></label>
         <label class="field tpl-ctl"><input type="checkbox" id="noteNames"><span data-i18n="settings.noteNames">Nomi sulle note</span></label>
         <label class="field tpl-ctl"><input type="checkbox" id="noteColors"><span data-i18n="settings.noteColors">Colori per nota</span></label>
@@ -259,6 +260,34 @@
             <label class="tpl-ctl"><input type="checkbox" id="solo1"><span data-i18n="settings.solo">Solo</span></label>
             <label class="tpl-ctl"><input type="checkbox" id="mute1"><span data-i18n="settings.mute">Muto</span></label>
             <input type="range" id="vol1" min="0" max="100" step="10" value="100" aria-label="Volume pentagramma 2" data-i18n-aria="settings.mix1">
+          </div>
+        </div>
+      </section>
+
+      <section class="settings" aria-label="Allenamento all'ascolto" data-i18n-aria="ear.title">
+        <div class="group" style="width:100%">
+          <span class="glabel" data-i18n="ear.title">Allenamento all'ascolto</span>
+          <div class="tools">
+            <select id="earMode" aria-label="Tipo di esercizio" data-i18n-aria="ear.mode">
+              <option value="interval" data-i18n="ear.modeInterval">Intervalli</option>
+              <option value="chord" data-i18n="ear.modeChord">Accordi</option>
+            </select>
+            <button class="tool" id="earNewBtn" type="button" data-i18n="ear.new">Nuovo</button>
+            <button class="tool" id="earReplayBtn" type="button" data-i18n="ear.replay">Riascolta</button>
+          </div>
+          <div class="tools" id="earAnswers"></div>
+          <p class="hint" id="earFeedback" role="status"></p>
+          <p class="hint" id="earScore"></p>
+        </div>
+      </section>
+
+      <section class="settings" aria-label="Scorciatoie da tastiera" data-i18n-aria="settings.shortcutsTitle">
+        <div class="group" style="width:100%">
+          <span class="glabel" data-i18n="settings.shortcutsTitle">Scorciatoie da tastiera</span>
+          <div id="shortcutsBox"></div>
+          <p class="hint" data-i18n="settings.shortcutsHelp">Clicca su un tasto per cambiarlo, poi premi il nuovo tasto sulla tastiera (Esc per annullare).</p>
+          <div class="tools">
+            <button class="tool" id="btnShortcutsReset" type="button" data-i18n="settings.shortcutReset">Ripristina predefinite</button>
           </div>
         </div>
       </section>
