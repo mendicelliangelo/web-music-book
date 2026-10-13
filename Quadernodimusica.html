@@ -129,6 +129,17 @@
           </div>
         </div>
         <div class="group">
+          <span class="glabel" data-i18n="xform.variationTitle">Genera una variazione (tutto, o la selezione)</span>
+          <div class="tools">
+            <select id="variationKind" aria-label="Tipo di variazione" data-i18n-aria="xform.variationKind">
+              <option value="mirror" data-i18n="xform.variationMirror">A specchio</option>
+              <option value="minor" data-i18n="xform.variationMinor">In modo minore</option>
+              <option value="retrograde" data-i18n="xform.variationRetrograde">Al rovescio</option>
+            </select>
+            <button class="tool" id="btnVariation" type="button" data-i18n="xform.variationBtn" data-i18n-title="xform.variationBtnTitle" title="Applica la variazione scelta">Applica</button>
+          </div>
+        </div>
+        <div class="group">
           <span class="glabel" data-i18n="xform.replaceTitle">Cerca e sostituisci (tutto, o la selezione)</span>
           <div class="tools">
             <select id="xFromNote" data-i18n-aria="xform.replaceFrom" aria-label="Cerca questa nota"></select>

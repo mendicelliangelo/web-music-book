@@ -107,6 +107,30 @@ function analyzeChords(){
   toast(count?t('t.chordsAnalyzed',{n:count}):t('t.noNotesInSelection'));
 }
 $('btnAnalyzeChords').addEventListener('click',e=>{analyzeChords();blurIfMouse(e)});
+function applyVariation(kind){
+  const r=isRange()?selRange():null;
+  const targets=r?[{k:state.as,from:r[0],to:r[1]+1}]:visible().map((s,k)=>({k,from:0,to:s.events.length}));
+  const anyNotes=targets.some(tg=>state.staves[tg.k].events.slice(tg.from,tg.to).some(e=>!e.r));
+  if(!anyNotes){toast(t('t.noNotesInSelection'));return}
+  stopPlay();rec();
+  targets.forEach(tg=>{
+    const ev=state.staves[tg.k].events,part=ev.slice(tg.from,tg.to);
+    if(!part.length)return;
+    let out;
+    if(kind==='mirror'){
+      const firstNote=part.find(e=>!e.r);
+      out=invertPitches(part,firstNote?noteMidi(firstNote.n[0]):60,state.key);
+    }else if(kind==='minor')out=toParallelMinor(part,state.key);
+    else out=retrogradeEvents(part);
+    ev.splice(tg.from,part.length,...out);
+    const rs=resplitEvents(ev,btNow());
+    if(rs.changed)state.staves[tg.k].events=rs.events;
+  });
+  state.sel=-1;state.selEnd=-1;state.selN=-1;state.cur=Math.min(state.cur,EV().length);
+  render();
+  toast(t('t.variationApplied'));
+}
+$('btnVariation').addEventListener('click',e=>{applyVariation($('variationKind').value);blurIfMouse(e)});
 $('xReplace').addEventListener('click',e=>{
   const[fl,fa]=$('xFromNote').value.split(',').map(Number),[tl,ta]=$('xToNote').value.split(',').map(Number);
   replaceAll(fl,fa,tl,ta);blurIfMouse(e);

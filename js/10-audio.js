@@ -77,8 +77,43 @@ function earCheck(v){
   $('earFeedback').textContent=correct?t('ear.correct'):t('ear.wrong',{name:t('ear.'+earAnswerKey())});
   $('earScore').textContent=t('ear.score',{score:ear.score,total:ear.total});
 }
+function noiseBuffer(ac){
+  if(!synth.noiseBuf||synth.noiseBuf.sampleRate!==ac.sampleRate){
+    const len=ac.sampleRate,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+    synth.noiseBuf=buf;
+  }
+  return synth.noiseBuf;
+}
+function drumHit(ac,t,midi,vel,pan){
+  // batteria semplificata a tre zone, in base all'altezza scritta: bassa = cassa, media = rullante, acuta = piatto
+  const zone=midi<48?'kick':midi<60?'snare':'hihat';
+  const g=ac.createGain(),peak=.6*Math.min(1.4,(vel||90)/90);
+  let out=synth.master;
+  if(pan&&ac.createStereoPanner){const p=ac.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));p.connect(synth.master);out=p}
+  if(zone==='kick'){
+    const o=ac.createOscillator();o.type='sine';
+    o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);
+    g.gain.setValueAtTime(peak,t);g.gain.exponentialRampToValueAtTime(.001,t+.28);
+    o.connect(g);g.connect(out);o.start(t);o.stop(t+.3);
+    voices.push({g,o});if(voices.length>400)voices.splice(0,voices.length-400);
+    return;
+  }
+  const src=ac.createBufferSource();src.buffer=noiseBuffer(ac);src.loop=true;
+  const bp=ac.createBiquadFilter();
+  if(zone==='snare'){
+    bp.type='bandpass';bp.frequency.value=1800;bp.Q.value=.7;
+    g.gain.setValueAtTime(peak*.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+  }else{
+    bp.type='highpass';bp.frequency.value=7000;
+    g.gain.setValueAtTime(peak*.6,t);g.gain.exponentialRampToValueAtTime(.001,t+.09);
+  }
+  src.connect(bp);bp.connect(g);g.connect(out);src.start(t);src.stop(t+.3);
+  voices.push({g,o:src});if(voices.length>400)voices.splice(0,voices.length-400);
+}
 const voices=[];
 function tone(midi,t,dur,inst,vel,pan){
+  if(inst.perc){drumHit(synth.ac,t,midi,vel,pan);return}
   const ac=synth.ac,f=440*Math.pow(2,(midi-69)/12);
   const o=ac.createOscillator();o.setPeriodicWave(waveOf(inst));o.frequency.value=f;
   const lp=ac.createBiquadFilter();lp.type='lowpass';lp.Q.value=.7;

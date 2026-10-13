@@ -171,6 +171,23 @@ const INSTRUMENTS = [
     lv: 0.95,
   },
   {
+    // batteria semplificata: non usa la sintesi armonica qui sotto, tone() la riconosce da "perc"
+    // e sceglie cassa/rullante/piatto in base alla zona di altezza della nota scritta (vedi 10-audio.js)
+    id: "drums",
+    perc: true,
+    program: 0,
+    harm: [1],
+    a: 0.001,
+    tau: 0.2,
+    pd: 30,
+    sus: 0,
+    r: 0.05,
+    br: 1,
+    dk: 1,
+    ft: 0.1,
+    lv: 1,
+  },
+  {
     id: "flute",
     program: 73,
     harm: [1, 0.25, 0.1, 0.04],

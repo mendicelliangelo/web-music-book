@@ -118,8 +118,27 @@ $('btnExportWav').addEventListener('click',async()=>{
     }
     return waves[inst.id];
   };
+  const noiseBuf=(()=>{const len=oac.sampleRate,b=oac.createBuffer(1,len,oac.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;return b})();
+  const drumHitOff=(t,midi,vel,pan)=>{
+    const zone=midi<48?'kick':midi<60?'snare':'hihat';
+    const g=oac.createGain(),peak=.6*Math.min(1.4,(vel||90)/90);
+    let out=master;
+    if(pan&&oac.createStereoPanner){const p=oac.createStereoPanner();p.pan.value=Math.max(-1,Math.min(1,pan));p.connect(master);out=p}
+    if(zone==='kick'){
+      const o=oac.createOscillator();o.type='sine';
+      o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);
+      g.gain.setValueAtTime(peak,t);g.gain.exponentialRampToValueAtTime(.001,t+.28);
+      o.connect(g);g.connect(out);o.start(t);o.stop(t+.3);return;
+    }
+    const src=oac.createBufferSource();src.buffer=noiseBuf;src.loop=true;
+    const bp=oac.createBiquadFilter();
+    if(zone==='snare'){bp.type='bandpass';bp.frequency.value=1800;bp.Q.value=.7;g.gain.setValueAtTime(peak*.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.18)}
+    else{bp.type='highpass';bp.frequency.value=7000;g.gain.setValueAtTime(peak*.6,t);g.gain.exponentialRampToValueAtTime(.001,t+.09)}
+    src.connect(bp);bp.connect(g);g.connect(out);src.start(t);src.stop(t+.3);
+  };
   const toneOff=(midi,t,dur,inst,vel,pan)=>{
     // rispecchia tone() in 10-audio.js, ma su OfflineAudioContext (le PeriodicWave non si condividono tra contesti)
+    if(inst.perc){drumHitOff(t,midi,vel,pan);return}
     const f=440*Math.pow(2,(midi-69)/12);
     const o=oac.createOscillator();o.setPeriodicWave(waveFor(inst));o.frequency.value=f;
     const lp=oac.createBiquadFilter();lp.type='lowpass';lp.Q.value=.7;

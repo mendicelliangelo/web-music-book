@@ -159,7 +159,10 @@ $('clef1').addEventListener('change',e=>onClefChange(1,e.target.value));
 $('key').addEventListener('change',e=>{stopPlay();state.key=+e.target.value;render()});
 $('meter').addEventListener('change',e=>{stopPlay();state.meter=e.target.value;render()});
 $('nS').addEventListener('change',e=>{stopPlay();state.nS=+e.target.value;if(state.as>=state.nS){state.as=0;state.cur=EV().length;state.sel=-1;state.selN=-1}render()});
-$('inst').addEventListener('change',e=>{stopPlay();state.inst=e.target.value;render();beep(noteMidi({d:bdA()+2,a:0}))});
+$('inst').addEventListener('change',e=>{
+  stopPlay();state.inst=e.target.value;render();beep(noteMidi({d:bdA()+2,a:0}));
+  if(instOf().perc)toast(t('t.drumsZones'));
+});
 function setBpm(v){const b=Math.round(+v);if(!(b>=30&&b<=240))return;stopPlay();state.bpm=b;render()}
 $('bpmRange').addEventListener('input',e=>setBpm(e.target.value));
 $('bpm').addEventListener('change',e=>{const b=Math.max(30,Math.min(240,Math.round(+e.target.value)||state.bpm));setBpm(b);$('bpm').value=state.bpm});

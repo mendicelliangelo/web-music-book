@@ -99,6 +99,50 @@ function chordSymbolFor(rootPC, quality, has7, key) {
   if (has7) s += "7";
   return s;
 }
+function invertPitches(events, pivotMidi, key) {
+  // a specchio: inverte gli intervalli attorno a un perno (di norma la prima nota)
+  return events.map((e) => {
+    if (e.r) return { ...e };
+    const ns = e.n.map((n) => {
+      const m = 2 * pivotMidi - noteMidi(n);
+      if (m < 24 || m > 115) return n;
+      const sp = spellMidi(m, key);
+      return n.t ? { d: sp.d, a: sp.a, t: 1 } : { d: sp.d, a: sp.a };
+    });
+    return { ...e, n: sortNotes(ns) };
+  });
+}
+function toParallelMinor(events, key) {
+  // modo minore parallelo: abbassa di un semitono le note sul III, VI e VII grado della tonalità maggiore corrente
+  const tonic = tonicPC(key);
+  return events.map((e) => {
+    if (e.r) return { ...e };
+    const ns = e.n.map((n) => {
+      const pc = (((noteMidi(n) - tonic) % 12) + 12) % 12,
+        degreeIdx = MAJOR_DEGREE_OFFSETS.indexOf(pc);
+      if (degreeIdx === 2 || degreeIdx === 5 || degreeIdx === 6) {
+        const sp = spellMidi(noteMidi(n) - 1, key, "flat");
+        return n.t ? { d: sp.d, a: sp.a, t: 1 } : { d: sp.d, a: sp.a };
+      }
+      return n;
+    });
+    return { ...e, n: ns };
+  });
+}
+function retrogradeEvents(events) {
+  // al rovescio: inverte l'ordine delle figure; le legature di valore non sono più coerenti e vengono tolte
+  return events
+    .slice()
+    .reverse()
+    .map((e) => {
+      if (e.r) return { ...e };
+      const ns = e.n.map((n) => {
+        const { t, ...rest } = n;
+        return rest;
+      });
+      return { ...e, n: ns };
+    });
+}
 function generatePattern(kind, key, tonicD) {
   // scala (8 note, un'ottava), arpeggio (4 note: radice-terza-quinta-ottava), basso albertino (radice-quinta-terza-quinta ripetuto)
   const ka = (d) => keyAlter(key, ((d % 7) + 7) % 7),
