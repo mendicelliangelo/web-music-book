@@ -3,8 +3,47 @@
 let lastEntry={staff:0,idx:-1,ts:0};
 const recS={on:false,phase:'',t0:0,msPerTick:0,notes:[],open:new Map(),timer:0,clickAt:0,beatSec:0,bt:0,count:0,startTick:0,grid:120,perfOff:0};
 const sane=ts=>typeof ts==='number'&&Math.abs(ts-performance.now())<10000?ts:performance.now();   // marca di tempo non coerente: usa l'ora attuale
+/* modalità esercizio: confronta le note suonate dal vivo (tasti, MIDI, microfono) con la melodia già
+   scritta sul pentagramma attivo, una figura alla volta; non controlla il ritmo, solo l'altezza */
+const ex={on:false,steps:[],pos:0,errors:0,staffIdx:-1};
+function exerciseStart(){
+  const steps=[];
+  EV().forEach((e,i)=>{if(!e.r)steps.push({i,need:new Set(e.n.map(n=>noteMidi(n)))})});
+  if(!steps.length){toast(t('t.writeFirst'));return}
+  stopPlay();if(recS.on)stopRec();
+  ex.on=true;ex.steps=steps;ex.pos=0;ex.errors=0;ex.staffIdx=state.as;
+  applyExerciseClass();
+  toast(t('t.exerciseStarted',{n:steps.length}));
+}
+function exerciseStop(){
+  if(!ex.on)return;
+  ex.on=false;applyExerciseClass();updateChrome();
+}
+function exerciseNoteOn(m){
+  if(!ex.on||state.as!==ex.staffIdx||ex.pos>=ex.steps.length)return;
+  const step=ex.steps[ex.pos];
+  if(step.need.has(m)){
+    step.need.delete(m);
+    if(!step.need.size){
+      ex.pos++;
+      if(ex.pos>=ex.steps.length){
+        toast(t('t.exerciseDone',{n:ex.errors,errorWord:plural(ex.errors,t('t.exerciseErrorOne'),t('t.exerciseErrorMany'))}));
+        ex.on=false;
+      }
+    }
+  }else ex.errors++;
+  applyExerciseClass();
+}
+function applyExerciseClass(){
+  const root=$('score');
+  root.querySelectorAll('.ev.exercise').forEach(n=>n.classList.remove('exercise'));
+  if(!ex.on||state.as!==ex.staffIdx||ex.pos>=ex.steps.length)return;
+  const el=root.querySelector(`.ev[data-s="${state.as}"][data-i="${ex.steps[ex.pos].i}"]`);
+  if(el){el.classList.add('exercise');if(document.body.classList.contains('mob'))ensureVisible(el)}
+}
 function noteOn(m,ts){                             // chiamata da tasti a schermo e da tastiera MIDI
   ts=sane(ts);beepHeld(m);
+  if(ex.on&&state.as===ex.staffIdx){exerciseNoteOn(m);return}
   if(recS.on){
     if(recS.phase==='rec'||ts>=recS.t0-recS.msPerTick*PPQ*.25){if(!recS.open.has(m))recS.open.set(m,Math.max(0,(ts-recS.t0)/recS.msPerTick))}
     return;

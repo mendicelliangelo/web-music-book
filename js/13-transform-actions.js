@@ -84,6 +84,27 @@ function insertPattern(kind,mode){
   toast(t('t.patternInserted',{n:made.length}));
 }
 $('btnPattern').addEventListener('click',e=>{insertPattern($('patKind').value,$('patMode').value);blurIfMouse(e)});
+function insertTuplet(n,d){
+  const durId=state.tool.dur,base=DUR_BY[durId].ticks,total=base*d,bt=btNow();
+  const posInBar=ticksBefore(EV(),state.cur)%bt;
+  if(posInBar+total>bt){toast(t('t.tupletDoesntFit'));return}
+  const ev=EV();
+  if(ev.length+n>MAXEV){toast(t('t.tooLong'));return}
+  stopPlay();rec();
+  const pitchD=lastNoteD(state.cur)??(bdA()+4),alt=keyAlter(state.key,((pitchD%7)+7)%7);
+  const made=[];
+  for(let i=0;i<n;i++)made.push({r:false,v:durId,dot:0,n:[{d:pitchD,a:alt}],tuplet:{n,d,i}});
+  const idx=state.cur;
+  if(state.tool.over)clearSpan(ev,idx,total);
+  ev.splice(idx,0,...made);
+  state.cur=idx+made.length;state.sel=-1;state.selEnd=-1;state.selN=-1;
+  render();
+  toast(t('t.tupletInserted',{n}));
+}
+$('btnTuplet').addEventListener('click',e=>{
+  const[n,d]=$('tupletKind').value.split(',').map(Number);
+  insertTuplet(n,d);blurIfMouse(e);
+});
 function analyzeChords(){
   const r=isRange()?selRange():null,ev=EV();
   if(!ev.length){toast(t('t.emptySheet'));return}
@@ -107,6 +128,54 @@ function analyzeChords(){
   toast(count?t('t.chordsAnalyzed',{n:count}):t('t.noNotesInSelection'));
 }
 $('btnAnalyzeChords').addEventListener('click',e=>{analyzeChords();blurIfMouse(e)});
+function generateAccompaniment(kind){
+  if(state.nS<2){toast(t('t.needSecondStaff'));return}
+  const bt=btNow();
+  let out=buildAccompaniment(state.staves[0].events,bt,state.key,kind);
+  if(!out){toast(t('t.noChordsForAccompaniment'));return}
+  if(out.length>MAXEV){toast(t('t.tooLong'));return}
+  const rs=resplitEvents(out,bt);if(rs.changed)out=rs.events;
+  stopPlay();rec();
+  state.staves[1].events=out;
+  state.sel=-1;state.selEnd=-1;state.selN=-1;
+  if(state.as===1)state.cur=Math.min(state.cur,out.length);
+  render();
+  toast(t('t.accompanimentGenerated'));
+}
+$('btnAccompaniment').addEventListener('click',e=>{generateAccompaniment($('accompKind').value);blurIfMouse(e)});
+function harmonize(kind){
+  if(state.nS<2){toast(t('t.needSecondStaff'));return}
+  const melody=state.staves[0].events;
+  if(!melody.length){toast(t('t.emptySheet'));return}
+  const bt=btNow(),an=analyze(melody,bt),byM=new Map();
+  melody.forEach((e,i)=>{
+    if(e.r)return;
+    const m=an.items[i].m;
+    if(!byM.has(m))byM.set(m,{firstIdx:i,pcs:new Map(),hasChord:false});
+    const g=byM.get(m);
+    if(e.chord)g.hasChord=true;
+    e.n.forEach(n=>{const pc=((noteMidi(n)%12)+12)%12;g.pcs.set(pc,(g.pcs.get(pc)||0)+1)});
+  });
+  if(!byM.size){toast(t('t.emptySheet'));return}
+  stopPlay();rec();
+  let count=0;
+  byM.forEach(g=>{
+    if(g.hasChord)return; // non sovrascrive le sigle già scritte a mano
+    const best=bestDiatonicChord(g.pcs,state.key);
+    if(!best)return;
+    melody[g.firstIdx].chord=chordSymbolFor(best.rootPC,best.quality,best.has7,state.key);count++;
+  });
+  let out=buildAccompaniment(melody,bt,state.key,kind);
+  if(!out){toast(t('t.noChordsForAccompaniment'));return}
+  if(out.length>MAXEV){toast(t('t.tooLong'));return}
+  const rs=resplitEvents(out,bt);if(rs.changed)out=rs.events;
+  state.staves[1].events=out;
+  state.sel=-1;state.selEnd=-1;state.selN=-1;
+  if(state.as===1)state.cur=Math.min(state.cur,out.length);
+  render();
+  toast(t('t.harmonized',{n:count}));
+}
+$('btnHarmonize').addEventListener('click',e=>{harmonize($('harmonizeKind').value);blurIfMouse(e)});
 function applyVariation(kind){
   const r=isRange()?selRange():null;
   const targets=r?[{k:state.as,from:r[0],to:r[1]+1}]:visible().map((s,k)=>({k,from:0,to:s.events.length}));

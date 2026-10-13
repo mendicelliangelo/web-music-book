@@ -287,7 +287,8 @@ html.handwritten text.ped,
 html.handwritten text.notename,
 html.handwritten text.lyr,
 html.handwritten text.chordsym,
-html.handwritten text.orn {
+html.handwritten text.orn,
+html.handwritten text.repsign {
   font-family: "Caveat", var(--serif);
 }
 .ev {
@@ -305,6 +306,10 @@ html.handwritten text.orn {
 .ev.sel .hl,
 .ev.play .hl {
   opacity: 1;
+}
+.ev.exercise .hl {
+  opacity: 1;
+  fill: rgba(230, 170, 30, 0.25);
 }
 .caret {
   stroke: var(--accent);
@@ -343,6 +348,24 @@ html.handwritten text.orn {
   font-family: var(--serif);
   font-style: italic;
   font-weight: 700;
+}
+.repsign {
+  fill: var(--accent);
+  font-family: var(--ui);
+  font-weight: 700;
+}
+.tabnum {
+  fill: var(--muted);
+  font-family: var(--ui);
+  font-weight: 600;
+  font-variant-numeric: lining-nums;
+}
+.chorddiag {
+  color: var(--muted);
+}
+.chorddiag text {
+  fill: currentColor;
+  font-family: var(--ui);
 }
 .dynbtn {
   font: italic 700 17px/1 var(--serif);

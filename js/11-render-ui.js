@@ -3,13 +3,21 @@
 let lay=null,svgEl=null,ghost=null;
 function render(){
   const box=$('score'),W=Math.max(300,Math.floor(box.clientWidth||900)),S=(W<520?10:12)*(state.zoom||1);
-  const instTr=instOf().transpose||0,dispKey=instTr?keyAfterTranspose(state.key,instTr):state.key;
-  const dispStaves=instTr?state.staves.map(s=>({...s,events:transposeEventsInKey(s.events,instTr,dispKey)||s.events})):state.staves;
+  // ogni pentagramma trasporta secondo il PROPRIO strumento; la tonalità in chiave mostrata è quella
+  // dello strumento trasponente se ce n'è uno solo in uso, altrimenti resta quella del concerto
+  // (caso raro di più strumenti trasponenti diversi insieme: semplificazione consapevole)
+  const trs=state.staves.map((s,k)=>instOf(k).transpose||0),
+    distinct=[...new Set(trs.filter(x=>x))],
+    dispKey=distinct.length===1?keyAfterTranspose(state.key,distinct[0]):state.key;
+  const dispStaves=state.staves.map((s,k)=>{
+    const tr=trs[k];if(!tr)return s;
+    return {...s,events:transposeEventsInKey(s.events,tr,keyAfterTranspose(state.key,tr))||s.events};
+  });
   lay=buildLayout(dispStaves,{width:W,S,meter:state.meter,key:dispKey,nS:state.nS,as:state.as,cur:state.cur});
   box.innerHTML=renderSVG(dispStaves,lay,{meter:state.meter,as:state.as,sel:state.sel,selEnd:state.selEnd,selN:state.selN,measureNumEvery:state.measureNumEvery,noteNames:state.noteNames,noteColors:state.noteColors,staffColors:state.staffColors});
   svgEl=box.firstElementChild;ghost=svgEl.querySelector('#ghost');
-  $('instTrNote').textContent=instTr?t('settings.transposingNote',{key:keyNameFor(dispKey)}):'';
-  applyPlayClass();updateChrome();save();updatePop();
+  $('instTrNote').textContent=distinct.length?t('settings.transposingNote',{key:keyNameFor(dispKey)}):'';
+  applyPlayClass();applyExerciseClass();updateChrome();save();updatePop();
   if(document.body.classList.contains('mob')&&!play.on)ensureVisible(svgEl.querySelector('.ev.sel')||svgEl.querySelector('.caret'));
 }
 function problemsAll(){
@@ -33,7 +41,7 @@ function updateChrome(){
   $('btnSharp').setAttribute('aria-pressed',String(acc===1));
   $('btnFlat').setAttribute('aria-pressed',String(acc===-1));
   $('btnNat').setAttribute('aria-pressed',String(sn?(acc===0&&keyAlter(state.key,sn.d%7)!==0):acc===0));
-  $('btnChord').setAttribute('aria-pressed',String(state.tool.chord));
+  $('btnChordMode').setAttribute('aria-pressed',String(state.tool.chord));
   $('btnOver').setAttribute('aria-pressed',String(state.tool.over));
   const mk=markTargets(),m0=mk[0];
   document.querySelectorAll('.dynbtn').forEach(b=>b.setAttribute('aria-pressed',String(!!m0&&m0.dy===b.dataset.dy)));
@@ -42,33 +50,52 @@ function updateChrome(){
   $('btnPaste').disabled=!state.clip;$('btnCopy').disabled=!selRange();$('btnCut').disabled=!selRange();
   $('btnRest').textContent=se?t('palette.restAfter'):t('palette.rest');
   if($('title').value!==state.title)$('title').value=state.title;
-  $('key').value=String(state.key);$('meter').value=state.meter;$('inst').value=state.inst;$('nS').value=String(state.nS);
+  $('key').value=String(state.key);$('meter').value=state.meter;$('inst').value=instOf(state.as).id;$('nS').value=String(state.nS);
   $('zoom').value=String(Math.round((state.zoom||1)*100));
   $('measureNumEvery').value=String(state.measureNumEvery||0);
   $('noteNames').checked=!!state.noteNames;$('noteColors').checked=!!state.noteColors;$('staffColors').checked=!!state.staffColors;
   $('handwritten').checked=!!state.handwritten;document.documentElement.classList.toggle('handwritten',!!state.handwritten);
-  $('clef0').value=state.staves[0].clef;$('clef1').value=state.staves[1].clef;$('clef1f').hidden=state.nS<2;
-  $('mix1f').hidden=state.nS<2;
+  for(let k=0;k<state.nS;k++){
+    $('clef'+k).value=state.staves[k].clef;
+    const m=state.staveMix[k]||{mute:false,solo:false,vol:1};
+    $('solo'+k).checked=!!m.solo;$('mute'+k).checked=!!m.mute;$('vol'+k).value=String(Math.round((m.vol??1)*100));
+  }
   $('playbackRate').value=String(Math.round((state.playbackRate||1)*100));$('playbackRateLabel').textContent=Math.round((state.playbackRate||1)*100)+'%';
   $('loopSel').checked=!!state.loopSel;$('swing').checked=!!state.swing;
   $('stereoStaves').checked=!!state.stereoStaves;
   $('reverb').value=String(Math.round((state.reverb||0)*100));$('reverbLabel').textContent=Math.round((state.reverb||0)*100)+'%';
-  [0,1].forEach(k=>{
-    const m=state.staveMix[k]||{mute:false,solo:false,vol:1};
-    $('solo'+k).checked=!!m.solo;$('mute'+k).checked=!!m.mute;$('vol'+k).value=String(Math.round((m.vol??1)*100));
-  });
   $('bpm').value=state.bpm;$('bpmRange').value=state.bpm;$('term').textContent=tempoTerm(state.bpm);
   $('tmark').innerHTML=`<span>${tempoTerm(state.bpm)}</span>${noteIcon('q')}<b>= ${state.bpm}</b>`;
   $('octLabel').textContent=t('keys.octLabel',{a:state.kbOct,b:state.kbOct+1});
   $('undoBtn').disabled=!hist.length;$('redoBtn').disabled=!redoS.length;
   updateClock();
 }
+function buildStaffRowsUI(){
+  // righe per chiave e mixer, una per pentagramma attivo (state.nS): generate invece che statiche in
+  // HTML, per permettere più di due pentagrammi. Ricreate da capo ad ogni cambio di nS, quindi
+  // vanno anche riagganciati gli ascoltatori.
+  const n=state.nS,clefOpts=Object.keys(CLEFS).map(k=>`<option value="${k}">${clefNameFor(k)}</option>`).join('');
+  $('clefRows').innerHTML=Array.from({length:n},(_,k)=>
+    `<label class="field"><span>${t('settings.clefN',{n:k+1})}</span><select id="clef${k}">${clefOpts}</select></label>`,
+  ).join('');
+  $('mixRows').innerHTML=Array.from({length:n},(_,k)=>
+    `<div class="field mixrow"><span>${t('settings.mixN',{n:k+1})}</span><div class="tools">`+
+    `<label class="tpl-ctl"><input type="checkbox" id="solo${k}"><span>${t('settings.solo')}</span></label>`+
+    `<label class="tpl-ctl"><input type="checkbox" id="mute${k}"><span>${t('settings.mute')}</span></label>`+
+    `<input type="range" id="vol${k}" min="0" max="100" step="10" value="100" aria-label="${t('settings.mixN',{n:k+1})}"></div></div>`,
+  ).join('');
+  for(let k=0;k<n;k++){
+    $('clef'+k).addEventListener('change',e=>onClefChange(k,e.target.value));
+    $('solo'+k).addEventListener('change',e=>{state.staveMix[k]=state.staveMix[k]||{mute:false,solo:false,vol:1};state.staveMix[k].solo=e.target.checked});
+    $('mute'+k).addEventListener('change',e=>{state.staveMix[k]=state.staveMix[k]||{mute:false,solo:false,vol:1};state.staveMix[k].mute=e.target.checked});
+    $('vol'+k).addEventListener('input',e=>{state.staveMix[k]=state.staveMix[k]||{mute:false,solo:false,vol:1};state.staveMix[k].vol=Math.max(0,Math.min(1,(+e.target.value||0)/100))});
+  }
+}
 function buildStatic(){
   $('key').innerHTML=[-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7].map(k=>`<option value="${k}">${keyNameFor(k)}</option>`).join('');
   $('meter').innerHTML=METERS.map(m=>`<option value="${m}">${m}</option>`).join('');
   $('inst').innerHTML=INSTRUMENTS.map(i=>`<option value="${i.id}">${instNameFor(i.id)}</option>`).join('');
-  const clefs=Object.keys(CLEFS).map(k=>`<option value="${k}">${clefNameFor(k)}</option>`).join('');
-  $('clef0').innerHTML=clefs;$('clef1').innerHTML=clefs;
+  buildStaffRowsUI();
   $('durs').innerHTML=DURS.map((d,k)=>`<button type="button" class="dur" data-v="${d.id}" aria-pressed="false" title="${durNameFor(d.id)} (${d.frac}) · ${t('dur.key',{n:k+1})}">${noteIcon(d.id)}<b>${durNameFor(d.id)}</b><small>${d.frac}</small></button>`).join('');
   $('btnSharp').innerHTML='';$('btnFlat').innerHTML='';$('btnNat').innerHTML='';
   $('btnSharp').insertAdjacentHTML('afterbegin',glyphIcon('sharp',26));

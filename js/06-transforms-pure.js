@@ -143,6 +143,132 @@ function retrogradeEvents(events) {
       return { ...e, n: ns };
     });
 }
+function fretFor(midi) {
+  // tasto più basso, su qualunque corda, che raggiunge l'altezza data (entro il 15° tasto)
+  let best = null;
+  GUITAR_TUNING.forEach((openMidi) => {
+    const fret = midi - openMidi;
+    if (fret >= 0 && fret <= 15 && (!best || fret < best)) best = fret;
+  });
+  return best;
+}
+function tabForEvent(e) {
+  // tastatura semplificata: assegna ad ogni nota dell'evento una corda diversa (vuoto a disposizione),
+  // scegliendo sempre il tasto più basso libero; null se una nota non è raggiungibile su nessuna corda libera
+  if (e.r || !e.n.length) return null;
+  const notes = e.n.map((n) => noteMidi(n)).sort((a, b) => a - b);
+  const used = new Set(),
+    out = [];
+  for (const m of notes) {
+    let best = null;
+    GUITAR_TUNING.forEach((openMidi, str) => {
+      if (used.has(str)) return;
+      const fret = m - openMidi;
+      if (fret >= 0 && fret <= 15 && (!best || fret < best.fret)) best = { str, fret };
+    });
+    if (!best) return null;
+    used.add(best.str);
+    out.push(best);
+  }
+  return out.sort((a, b) => a.str - b.str);
+}
+const CHORD_LETTER_NAMES = ["C", "D", "E", "F", "G", "A", "B"];
+function parseChordSymbol(str) {
+  // interpreta una sigla come "Sol7", "Am", "F#dim", "Bbmaj7": riconosce sia le lettere latine
+  // (C D E F G A B) sia il solfeggio di it/fr/es/pl e le lettere tedesche (H=Si), indipendentemente
+  // dalla lingua dell'interfaccia in cui è stata scritta. Ritorna {rootPC,minor} o null se non capita.
+  if (!str) return null;
+  const s = str.trim();
+  const candidates = [];
+  CHORD_LETTER_NAMES.forEach((L, i) => candidates.push({ name: L, i }));
+  LETTERS.it.forEach((L, i) => candidates.push({ name: L, i }));
+  LETTERS.fr.forEach((L, i) => candidates.push({ name: L, i }));
+  LETTERS.de.forEach((L, i) => candidates.push({ name: L, i }));
+  candidates.sort((a, b) => b.name.length - a.name.length);
+  for (const c of candidates) {
+    if (s.toLowerCase().startsWith(c.name.toLowerCase())) {
+      let rest = s.slice(c.name.length),
+        alt = 0;
+      if (rest[0] === "#" || rest[0] === "♯") {
+        alt = 1;
+        rest = rest.slice(1);
+      } else if (rest[0] === "b" || rest[0] === "♭") {
+        alt = -1;
+        rest = rest.slice(1);
+      }
+      const rootPC = ((LETTER_SEMI[c.i] + alt) % 12 + 12) % 12;
+      const minor = /^m(?!aj)/i.test(rest);
+      return { rootPC, minor };
+    }
+  }
+  return null;
+}
+const CHORD_SHAPES = {
+  // forme aperte note: tasto per corda dalla 6ª (Mi grave) alla 1ª (Mi acuto); -1 = corda non suonata
+  maj: { 0: [-1, 3, 2, 0, 1, 0], 2: [-1, -1, 0, 2, 3, 2], 4: [0, 2, 2, 1, 0, 0], 5: [1, 3, 3, 2, 1, 1], 7: [3, 2, 0, 0, 0, 3], 9: [-1, 0, 2, 2, 2, 0] },
+  min: { 2: [-1, -1, 0, 2, 3, 1], 4: [0, 2, 2, 0, 0, 0], 5: [1, 3, 3, 1, 1, 1], 9: [-1, 0, 2, 2, 1, 0] },
+};
+function chordDiagram(rootPC, minor) {
+  // diagramma per chitarra: forma aperta nota se c'è, altrimenti barré mobile (forma di Mi/Mi minore)
+  const tab = CHORD_SHAPES[minor ? "min" : "maj"][rootPC];
+  if (tab) return { frets: tab, barreFret: null };
+  const fret = ((rootPC - 4) % 12 + 12) % 12,
+    shape = minor ? [0, 2, 2, 0, 0, 0] : [0, 2, 2, 1, 0, 0];
+  return { frets: shape.map((f) => f + fret), barreFret: fret };
+}
+function accompanimentChordTones(rootPC, minor) {
+  const root = 48 + rootPC, // ottava 3, registro basso-medio ragionevole per la mano sinistra
+    third = root + (minor ? 3 : 4),
+    fifth = root + 7;
+  return [root, third, fifth];
+}
+function buildAccompaniment(melodyEvents, bt, key, pattern) {
+  // legge le sigle accordo sulla melodia (prodotte da "Testo e accordi" o da "Analizza accordi") e scrive
+  // un accompagnamento della stessa durata totale: accordi in blocco, basso+accordo, o arpeggio.
+  // Accordi non riconosciuti (parseChordSymbol fallisce) vengono semplicemente saltati: la regione
+  // precedente continua fino alla prossima sigla valida.
+  const regions = [];
+  let t = 0;
+  melodyEvents.forEach((e) => {
+    if (!e.r && e.chord) {
+      const parsed = parseChordSymbol(e.chord);
+      if (parsed) regions.push({ start: t, parsed });
+    }
+    t += evTicks(e);
+  });
+  if (!regions.length) return null;
+  const total = totalTicks(melodyEvents);
+  regions.forEach((r, i) => {
+    r.end = i + 1 < regions.length ? regions[i + 1].start : total;
+  });
+  const out = [],
+    spell = (m) => spellMidi(m, key);
+  if (regions[0].start > 0) out.push(...makeEvents(0, regions[0].start, null, bt));
+  regions.forEach((r) => {
+    const span = r.end - r.start;
+    if (span <= 0) return;
+    const [root, third, fifth] = accompanimentChordTones(r.parsed.rootPC, r.parsed.minor);
+    if (pattern === "block") {
+      out.push(...makeEvents(r.start, span, [root, third, fifth].map(spell), bt));
+    } else if (pattern === "bassChord") {
+      const bassLen = Math.min(480, span);
+      out.push(...makeEvents(r.start, bassLen, [spell(root)], bt));
+      if (span > bassLen) out.push(...makeEvents(r.start + bassLen, span - bassLen, [third, fifth].map(spell), bt));
+    } else {
+      const step = 240,
+        notes = [root, third, fifth, third];
+      let tt = r.start,
+        i = 0;
+      while (tt < r.end) {
+        const len = Math.min(step, r.end - tt);
+        out.push(...makeEvents(tt, len, [spell(notes[i % 4])], bt));
+        tt += len;
+        i++;
+      }
+    }
+  });
+  return out;
+}
 function generatePattern(kind, key, tonicD) {
   // scala (8 note, un'ottava), arpeggio (4 note: radice-terza-quinta-ottava), basso albertino (radice-quinta-terza-quinta ripetuto)
   const ka = (d) => keyAlter(key, ((d % 7) + 7) % 7),

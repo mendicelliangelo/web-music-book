@@ -65,6 +65,17 @@
           </div>
         </div>
         <div class="group">
+          <span class="glabel" data-i18n="dyn.repeatsTitle">Ripetizioni (sulla figura prima del cursore, o la prima della selezione)</span>
+          <div class="tools">
+            <button class="tool" id="btnRepStart" type="button" data-i18n="dyn.repStart" data-i18n-title="dyn.repStartTitle" title="Inizio di una sezione da ripetere (||:)">Inizio ripetizione</button>
+            <button class="tool" id="btnRepEnd" type="button" data-i18n="dyn.repEnd" data-i18n-title="dyn.repEndTitle" title="Fine della sezione da ripetere (:||): si torna all'inizio ripetizione più recente, o all'inizio del brano">Fine ripetizione</button>
+            <button class="tool" id="btnSegno" type="button" data-i18n="dyn.segno" data-i18n-title="dyn.segnoTitle" title="Segno, punto di ritorno per «Dal segno»">Segno</button>
+            <button class="tool" id="btnDC" type="button" data-i18n="dyn.dc" data-i18n-title="dyn.dcTitle" title="Da capo al Fine: si torna all'inizio del brano, poi ci si ferma al segno «Fine»">D.C. al Fine</button>
+            <button class="tool" id="btnDS" type="button" data-i18n="dyn.ds" data-i18n-title="dyn.dsTitle" title="Dal segno al Fine: si torna al «Segno», poi ci si ferma al segno «Fine»">D.S. al Fine</button>
+            <button class="tool" id="btnFine" type="button" data-i18n="dyn.fine" data-i18n-title="dyn.fineTitle" title="Punto di arresto per D.C./D.S. al Fine">Fine</button>
+          </div>
+        </div>
+        <div class="group">
           <span class="glabel" data-i18n="dyn.textChordTitle">Testo e accordi (sulla prima figura della selezione, o quella prima del cursore)</span>
           <div class="tools">
             <input type="text" id="lyrText" maxlength="20" placeholder="la" aria-label="Testo sotto la nota" data-i18n-aria="dyn.lyrLabel" data-i18n-ph="dyn.lyrLabel" style="width:7em">
@@ -129,6 +140,39 @@
           </div>
         </div>
         <div class="group">
+          <span class="glabel" data-i18n="xform.tupletTitle">Terzine e gruppi irregolari (al cursore, con la durata della tavolozza)</span>
+          <div class="tools">
+            <select id="tupletKind" aria-label="Tipo di gruppo irregolare" data-i18n-aria="xform.tupletKind">
+              <option value="3,2" data-i18n="xform.tupletTriplet">Terzina (3 nel tempo di 2)</option>
+              <option value="5,4" data-i18n="xform.tupletQuintuplet">Quintina (5 nel tempo di 4)</option>
+              <option value="2,3" data-i18n="xform.tupletDuplet">Duina (2 nel tempo di 3, metri composti)</option>
+            </select>
+            <button class="tool" id="btnTuplet" type="button" data-i18n="xform.tupletBtn" data-i18n-title="xform.tupletBtnTitle" title="Inserisce il gruppo irregolare scelto al cursore">Inserisci</button>
+          </div>
+        </div>
+        <div class="group">
+          <span class="glabel" data-i18n="xform.accompTitle">Mano sinistra automatica (dalle sigle accordo sul pentagramma 1, scrive sul pentagramma 2)</span>
+          <div class="tools">
+            <select id="accompKind" aria-label="Tipo di accompagnamento" data-i18n-aria="xform.accompKind">
+              <option value="block" data-i18n="xform.accompBlock">Accordi in blocco</option>
+              <option value="bassChord" data-i18n="xform.accompBassChord">Basso e accordo</option>
+              <option value="arpeggio" data-i18n="xform.accompArpeggio">Arpeggio</option>
+            </select>
+            <button class="tool" id="btnAccompaniment" type="button" data-i18n="xform.accompBtn" data-i18n-title="xform.accompBtnTitle" title="Genera l'accompagnamento sul pentagramma 2, sostituendone il contenuto">Genera</button>
+          </div>
+        </div>
+        <div class="group">
+          <span class="glabel" data-i18n="xform.harmonizeTitle">Armonizzatore (deduce gli accordi dalla melodia del pentagramma 1, scrive sul pentagramma 2)</span>
+          <div class="tools">
+            <select id="harmonizeKind" aria-label="Tipo di accompagnamento" data-i18n-aria="xform.accompKind">
+              <option value="block" data-i18n="xform.accompBlock">Accordi in blocco</option>
+              <option value="bassChord" data-i18n="xform.accompBassChord">Basso e accordo</option>
+              <option value="arpeggio" data-i18n="xform.accompArpeggio">Arpeggio</option>
+            </select>
+            <button class="tool" id="btnHarmonize" type="button" data-i18n="xform.harmonizeBtn" data-i18n-title="xform.harmonizeBtnTitle" title="Deduce un accordo a battuta dalla melodia (una triade diatonica per volta) e genera l'accompagnamento sul pentagramma 2">Armonizza</button>
+          </div>
+        </div>
+        <div class="group">
           <span class="glabel" data-i18n="xform.variationTitle">Genera una variazione (tutto, o la selezione)</span>
           <div class="tools">
             <select id="variationKind" aria-label="Tipo di variazione" data-i18n-aria="xform.variationKind">
@@ -153,6 +197,7 @@
       <section class="files" aria-label="File" data-i18n-aria="aria.files">
         <button class="btn primary" id="btnExport" type="button" data-i18n="files.exportMidi">Scarica MIDI</button>
         <button class="btn" id="btnPdf" type="button" data-i18n="files.exportPdf">Scarica PDF</button>
+        <button class="btn" id="btnExportXml" type="button" data-i18n="files.exportXml" data-i18n-title="files.exportXmlTitle" title="Esporta come MusicXML, per aprire lo spartito in altri programmi di notazione">Esporta MusicXML</button>
         <button class="btn" id="btnExportImg" type="button" data-i18n="files.exportImg" data-i18n-title="files.exportImgTitle" title="Esporta un'immagine PNG: tutto lo spartito, o solo la selezione se ce n'è una">Esporta immagine</button>
         <button class="btn" id="btnExportWav" type="button" data-i18n="files.exportWav" data-i18n-title="files.exportWavTitle" title="Esporta l'audio come file WAV, con lo stesso suono dell'ascolto nella pagina">Esporta audio (WAV)</button>
         <button class="btn" id="btnShareLink" type="button" data-i18n="files.shareLink" data-i18n-title="files.shareLinkTitle" title="Copia un link che apre questo spartito: tutto il brano è codificato nel link stesso, non serve un server">Copia link condivisibile</button>
@@ -228,9 +273,8 @@
       <section class="settings" aria-label="Impostazioni dello spartito" data-i18n-aria="aria.settings">
         <label class="field"><span data-i18n="settings.key">Armatura di chiave</span><select id="key"></select></label>
         <label class="field"><span data-i18n="settings.meter">Metro</span><select id="meter"></select></label>
-        <label class="field"><span data-i18n="settings.staves">Pentagrammi</span><select id="nS"><option value="1" data-i18n="settings.stavesOne">Uno</option><option value="2" data-i18n="settings.stavesTwo">Due (pianoforte)</option></select></label>
-        <label class="field"><span data-i18n="settings.clef1">Chiave · pentagramma 1</span><select id="clef0"></select></label>
-        <label class="field" id="clef1f"><span data-i18n="settings.clef2">Chiave · pentagramma 2</span><select id="clef1"></select></label>
+        <label class="field"><span data-i18n="settings.staves">Pentagrammi</span><select id="nS"><option value="1" data-i18n="settings.stavesOne">Uno</option><option value="2" data-i18n="settings.stavesTwo">Due (pianoforte)</option><option value="3" data-i18n="settings.stavesThree">Tre</option><option value="4" data-i18n="settings.stavesFour">Quattro</option></select></label>
+        <div id="clefRows"></div>
         <div class="field">
           <label for="bpm"><span data-i18n="settings.tempo">Tempo · battiti al minuto</span></label>
           <div class="tempo-row">
@@ -239,7 +283,7 @@
             <em id="term"></em>
           </div>
         </div>
-        <label class="field"><span data-i18n="settings.instrument">Strumento</span><select id="inst"></select></label>
+        <label class="field"><span data-i18n="settings.instrument">Strumento (pentagramma attivo)</span><select id="inst"></select></label>
         <p class="hint" id="instTrNote" role="status"></p>
         <label class="field"><span data-i18n="settings.measureNum">Numeri di battuta</span><select id="measureNumEvery"></select></label>
         <label class="field tpl-ctl"><input type="checkbox" id="noteNames"><span data-i18n="settings.noteNames">Nomi sulle note</span></label>
@@ -257,22 +301,7 @@
           <input type="range" id="reverb" min="0" max="100" step="5" value="0" aria-label="Riverbero" data-i18n-aria="settings.reverb">
           <span id="reverbLabel">0%</span>
         </label>
-        <div class="field mixrow">
-          <span data-i18n="settings.mix0">Pentagramma 1 · solo, muto, volume</span>
-          <div class="tools">
-            <label class="tpl-ctl"><input type="checkbox" id="solo0"><span data-i18n="settings.solo">Solo</span></label>
-            <label class="tpl-ctl"><input type="checkbox" id="mute0"><span data-i18n="settings.mute">Muto</span></label>
-            <input type="range" id="vol0" min="0" max="100" step="10" value="100" aria-label="Volume pentagramma 1" data-i18n-aria="settings.mix0">
-          </div>
-        </div>
-        <div class="field mixrow" id="mix1f">
-          <span data-i18n="settings.mix1">Pentagramma 2 · solo, muto, volume</span>
-          <div class="tools">
-            <label class="tpl-ctl"><input type="checkbox" id="solo1"><span data-i18n="settings.solo">Solo</span></label>
-            <label class="tpl-ctl"><input type="checkbox" id="mute1"><span data-i18n="settings.mute">Muto</span></label>
-            <input type="range" id="vol1" min="0" max="100" step="10" value="100" aria-label="Volume pentagramma 2" data-i18n-aria="settings.mix1">
-          </div>
-        </div>
+        <div id="mixRows"></div>
       </section>
 
       <section class="settings" aria-label="Allenamento all'ascolto" data-i18n-aria="ear.title">
@@ -289,6 +318,17 @@
           <div class="tools" id="earAnswers"></div>
           <p class="hint" id="earFeedback" role="status"></p>
           <p class="hint" id="earScore"></p>
+        </div>
+      </section>
+
+      <section class="settings" aria-label="Modalità esercizio" data-i18n-aria="exmode.title">
+        <div class="group" style="width:100%">
+          <span class="glabel" data-i18n="exmode.title">Modalità esercizio</span>
+          <p class="hint" data-i18n="exmode.help">Suona la melodia del pentagramma attivo dal piano a schermo, dalla tastiera MIDI o dal microfono: le altezze giuste fanno avanzare, non controlla il ritmo.</p>
+          <div class="tools">
+            <button class="tool" id="btnExerciseStart" type="button" data-i18n="exmode.start">Avvia</button>
+            <button class="tool" id="btnExerciseStop" type="button" data-i18n="exmode.stop">Ferma</button>
+          </div>
         </div>
       </section>
 
@@ -316,7 +356,7 @@
             <button class="tool" id="btnFlat" type="button" aria-pressed="false" data-i18n-title="palette.flatTitle" title="Bemolle (tasto −)"><span class="vh" data-i18n="palette.flat">Bemolle</span></button>
             <button class="tool" id="btnNat" type="button" aria-pressed="false" data-i18n-title="palette.naturalTitle" title="Bequadro (tasto =)"><span class="vh" data-i18n="palette.natural">Bequadro</span></button>
             <button class="tool" id="btnOver" type="button" aria-pressed="false" data-i18n="palette.over" data-i18n-title="palette.overTitle" title="Le note nuove sostituiscono quelle che c'erano (tasto O)">Sovrascrivi</button>
-            <button class="tool" id="btnChord" type="button" aria-pressed="false" data-i18n="palette.chord" data-i18n-title="palette.chordTitle" title="Le note nuove si aggiungono alla precedente e formano un accordo (Maiusc + lettera)">Accordo</button>
+            <button class="tool" id="btnChordMode" type="button" aria-pressed="false" data-i18n="palette.chord" data-i18n-title="palette.chordTitle" title="Le note nuove si aggiungono alla precedente e formano un accordo (Maiusc + lettera)">Accordo</button>
             <button class="tool" id="btnTie" type="button" data-i18n="palette.tie" data-i18n-title="palette.tieTitle" title="Lega la nota alla successiva se è uguale (tasto T)">Legatura</button>
             <button class="tool" id="btnRest" type="button" data-i18n-title="palette.restTitle" title="Inserisce una pausa della durata scelta (tasto R)">Pausa</button>
             <button class="tool" id="btnDel" type="button" data-i18n="palette.del" data-i18n-title="palette.delTitle" title="Elimina (Backspace)">Elimina</button>

@@ -112,6 +112,11 @@ function drumHit(ac,t,midi,vel,pan){
   voices.push({g,o:src});if(voices.length>400)voices.splice(0,voices.length-400);
 }
 const voices=[];
+function panFor(k,nS){
+  // posizione stereo del pentagramma k: a sinistra il primo, a destra l'ultimo, spalmati in mezzo gli altri
+  if(!state.stereoStaves||nS<=1)return 0;
+  return -0.5+(k/(nS-1))*1;
+}
 function tone(midi,t,dur,inst,vel,pan){
   if(inst.perc){drumHit(synth.ac,t,midi,vel,pan);return}
   const ac=synth.ac,f=440*Math.pow(2,(midi-69)/12);
@@ -155,21 +160,24 @@ function startPlay(){
   if(!visible().some(s=>s.events.length)){toast(t('t.writeFirst'));return}
   stopPlay();if(recS.on)stopRec();
   const spt=60/(state.bpm*PPQ)/(state.playbackRate||1);
+  const bt=btNow(),useRepeats=!(state.loopSel&&isRange()),
+    exp=s=>useRepeats?expandEventsForRepeats(s.events,bt):s.events;
   let notes=[];
-  let starts=visible().map(s=>{let t=0;return s.events.map(e=>{const x=t;t+=evTicks(e);return x})});
+  let starts=visible().map(s=>{let t=0;return exp(s).map(e=>{const x=t;t+=evTicks(e);return x})});
   const mix=state.staveMix||[],anySolo=mix.some(m=>m&&m.solo);
   visible().forEach((s,k)=>{
     const m=mix[k]||{mute:false,solo:false,vol:1};
     if(m.mute||(anySolo&&!m.solo))return;
     const vol=m.vol==null?1:m.vol;
-    let staffNotes=applyPedal(flattenNotes(s.events),pedalSpans(s.events));
-    staffNotes=applyFermata(staffNotes,fermataTicks(s.events));
-    staffNotes=applyHairpins(staffNotes,hairpinSpans(s.events));
+    const evs=exp(s);
+    let staffNotes=applyPedal(flattenNotes(evs),pedalSpans(evs));
+    staffNotes=applyFermata(staffNotes,fermataTicks(evs));
+    staffNotes=applyHairpins(staffNotes,hairpinSpans(evs));
     if(state.swing)staffNotes=applySwing(staffNotes,beatTicksOf(state.meter));
     staffNotes.forEach(n=>notes.push({...n,v:Math.max(0,Math.min(127,Math.round(n.v*vol))),k}));
   });
   notes.sort((a,b)=>a.s-b.s);
-  let total=maxTotal(),loop=false,loopStart=0;
+  let total=useRepeats?Math.max(0,...visible().map(s=>totalTicks(exp(s)))):maxTotal(),loop=false,loopStart=0;
   if(state.loopSel&&isRange()){
     const r=selRange(),ev=EV();
     loopStart=ticksBefore(ev,r[0]);const loopEnd=ticksBefore(ev,r[1]+1);
@@ -181,12 +189,11 @@ function startPlay(){
   }
   play.starts=starts;
   Object.assign(play,{on:true,t0:ac.currentTime+.15,spt,notes,idx:0,cur:visible().map(()=>-1),total,loop,loopStart});
-  const inst=instOf();
   const nS=state.nS;
   const pump=()=>{
     while(play.idx<play.notes.length&&play.t0+play.notes[play.idx].s*spt<ac.currentTime+1.5){
-      const n=play.notes[play.idx],pan=state.stereoStaves&&nS>1?(n.k===0?-.5:.5):0;
-      tone(n.m,play.t0+n.s*spt,n.l*spt*.97,inst,n.v,pan);play.idx++;
+      const n=play.notes[play.idx],pan=panFor(n.k,nS);
+      tone(n.m,play.t0+n.s*spt,n.l*spt*.97,instOf(n.k),n.v,pan);play.idx++;
     }
   };
   pump();play.timer=setInterval(pump,100);

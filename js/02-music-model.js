@@ -24,6 +24,8 @@ const NOTE_COLORS = [
 ]; // Do..Si, usati quando l'utente attiva i colori per nota
 const STAFF_COLORS = ["#2f7fc1", "#c7703b"]; // pentagramma 1 e 2, quando l'utente attiva i colori per pentagramma
 const METERS = ["2/4", "3/4", "4/4", "2/2", "3/8", "6/8", "9/8", "12/8", "5/4"];
+const MAX_STAVES = 4; // limite pratico ai pentagrammi contemporanei (oltre richiederebbe una UI di gruppo più ricca)
+const GUITAR_TUNING = [40, 45, 50, 55, 59, 64]; // Mi2 La2 Re3 Sol3 Si3 Mi4 (corda 6ª-più grave- alla 1ª-più acuta)
 const DYNS = ["pp", "p", "mp", "mf", "f", "ff"],
   DYN_VEL = { pp: 33, p: 49, mp: 64, mf: 80, f: 96, ff: 112 }; // dinamica → velocità MIDI (senza segno: 90)
 const CLEFS = {
@@ -245,7 +247,8 @@ const barTicksOf = (m) => {
   return n * ((4 * PPQ) / d);
 };
 const beatTicksOf = (m) => (meterParts(m).d === 8 ? 720 : 480); // battito: semiminima, o semiminima puntata nei metri in 8
-const evTicks = (e) => DUR_BY[e.v].ticks * (e.dot ? 1.5 : 1);
+const evTicks = (e) =>
+  DUR_BY[e.v].ticks * (e.dot ? 1.5 : 1) * (e.tuplet ? e.tuplet.d / e.tuplet.n : 1);
 const noteMidi = (n) =>
   12 * (Math.floor(n.d / 7) + 1) + LETTER_SEMI[n.d % 7] + n.a;
 const noteLabel = (n) =>

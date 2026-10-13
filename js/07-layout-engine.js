@@ -305,7 +305,9 @@ function buildLayout(staves, o) {
         hasDy = false,
         hasSl = false,
         hasLyr = false,
-        hasChord = false;
+        hasChord = false,
+        hasChordDiagram = false;
+      const isGuitar = staves[k] && staves[k].inst === "guitar";
       for (const c of sy.items) {
         const idx = c.ev[k];
         if (idx < 0) continue;
@@ -315,7 +317,10 @@ function buildLayout(staves, o) {
         if (e.dy) hasDy = true;
         if (e.sl || e.se) hasSl = true;
         if (e.lyr) hasLyr = true;
-        if (e.chord) hasChord = true;
+        if (e.chord) {
+          hasChord = true;
+          if (isGuitar && parseChordSymbol(e.chord)) hasChordDiagram = true;
+        }
         const g = X[k].geo[idx];
         mn = Math.min(mn, g.pos[0]);
         mx = Math.max(mx, g.pos[g.pos.length - 1]);
@@ -328,21 +333,27 @@ function buildLayout(staves, o) {
           k ? S * 4.4 : S * 5.2,
           (mx - 8) * H + S * 2.2,
           hasSl ? (mx - 8) * H + S * 3.9 : 0,
-        ) + (hasChord ? S * 2.6 : 0);
+        ) +
+        (hasChord ? S * 2.6 : 0) +
+        (hasChordDiagram ? S * 2.8 : 0);
       const below =
           Math.max(
             S * 3.8,
             lowExt + S * 2.4,
             hasSl ? lowExt + S * 3.9 : 0,
             hasDy ? dynOff + S * 1.5 : 0,
-          ) + (hasLyr ? S * 2.6 : 0),
+          ) +
+          (hasLyr ? S * 2.6 : 0) +
+          (isGuitar ? S * 1.8 : 0),
         yTop = y + above;
       sy.staff.push({
         yTop,
         yBot: yTop + 4 * S,
         dynY: yTop + 4 * S + dynOff,
         chordY: yTop - S * 2,
-        lyrY: yTop + 4 * S + below - S * 0.8,
+        chordDiagY: yTop - S * 2 - (hasChord ? S * 2.6 : 0) - S * 0.6,
+        lyrY: yTop + 4 * S + below - S * 0.8 - (isGuitar ? S * 1.8 : 0),
+        tabY: yTop + 4 * S + below - S * 0.6,
       });
       y = yTop + 4 * S + below;
     }
@@ -462,7 +473,40 @@ function beamSVG(rows, up, S) {
   }
   return m;
 }
-function staffSVG(k, sy, si, L, st, pts) {
+function chordDiagramSVG(cx, yTop, shape, S) {
+  // piccolo diagramma per chitarra: 6 corde (colonne) x 4 tasti (righe); × = non suonata, ○ = a vuoto,
+  // pallino pieno = tasto premuto; se la forma è un barré mobile, il numero a sinistra indica il tasto di partenza
+  const { frets, barreFret } = shape,
+    lo = barreFret != null ? barreFret : 0,
+    wCol = S * 0.42,
+    hRow = S * 0.42,
+    nStr = 6,
+    nFret = 4,
+    x0 = cx - ((nStr - 1) * wCol) / 2,
+    y0 = yTop + S * 0.5;
+  let g = "";
+  for (let c = 0; c < nStr; c++)
+    g += `<path d="M${f1(x0 + c * wCol)} ${f1(y0)}V${f1(y0 + nFret * hRow)}" stroke="currentColor" stroke-width="${f1(S * 0.05)}" fill="none"/>`;
+  for (let r = 0; r <= nFret; r++)
+    g += `<path d="M${f1(x0)} ${f1(y0 + r * hRow)}H${f1(x0 + (nStr - 1) * wCol)}" stroke="currentColor" stroke-width="${f1(r === 0 && lo === 0 ? S * 0.12 : S * 0.04)}" fill="none"/>`;
+  frets.forEach((fr, str) => {
+    const px = x0 + str * wCol;
+    if (fr < 0) {
+      g += `<text x="${f1(px)}" y="${f1(y0 - S * 0.15)}" font-size="${f1(S * 0.4)}" text-anchor="middle">×</text>`;
+      return;
+    }
+    if (lo === 0 && fr === 0) {
+      g += `<circle cx="${f1(px)}" cy="${f1(y0 - S * 0.22)}" r="${f1(S * 0.09)}" fill="none" stroke="currentColor" stroke-width="${f1(S * 0.05)}"/>`;
+      return;
+    }
+    const boxIdx = lo === 0 ? fr - 1 : fr - lo,
+      y = y0 + (boxIdx + 0.5) * hRow;
+    g += `<circle cx="${f1(px)}" cy="${f1(y)}" r="${f1(S * 0.14)}" fill="currentColor"/>`;
+  });
+  if (lo > 0) g += `<text x="${f1(x0 - S * 0.22)}" y="${f1(y0 + hRow * 0.75)}" font-size="${f1(S * 0.32)}" text-anchor="end">${lo + 1}</text>`;
+  return `<g class="chorddiag">${g}</g>`;
+}
+function staffSVG(k, sy, si, L, st, pts, staves) {
   const S = L.S,
     H = S / 2,
     X = L.X[k],
@@ -599,8 +643,18 @@ function staffSVG(k, sy, si, L, st, pts) {
         g += `<text class="dyn" x="${f1(c.cx)}" y="${f1(sf.dynY)}" font-size="${f1(S * 1.6)}" text-anchor="middle">${e.dy}</text>`;
       if (e.lyr)
         g += `<text class="lyr" x="${f1(c.cx)}" y="${f1(sf.lyrY)}" font-size="${f1(S * 1.6)}" text-anchor="middle">${escXml(e.lyr)}</text>`;
-      if (e.chord)
+      if (e.chord) {
         g += `<text class="chordsym" x="${f1(c.cx)}" y="${f1(sf.chordY)}" font-size="${f1(S * 1.7)}" text-anchor="middle">${escXml(e.chord)}</text>`;
+        if (staves[k] && staves[k].inst === "guitar") {
+          const parsed = parseChordSymbol(e.chord);
+          if (parsed) g += chordDiagramSVG(c.cx, sf.chordDiagY, chordDiagram(parsed.rootPC, parsed.minor), S);
+        }
+      }
+      if (staves[k] && staves[k].inst === "guitar" && !e.r) {
+        const tab = tabForEvent(e);
+        if (tab)
+          g += `<text class="tabnum" x="${f1(c.cx)}" y="${f1(sf.tabY)}" font-size="${f1(S * 1.1)}" text-anchor="middle">${tab.map((x) => x.fret).join(" ")}</text>`;
+      }
       if (e.v !== "w") {
         const fl = FLAGS[e.v];
         let tip;
@@ -689,7 +743,7 @@ function renderSVG(staves, L, st) {
         if (c.bar && c.m % st.measureNumEvery === 0)
           o += `<text class="mnum" x="${f1(c.x)}" y="${yN}" font-size="${f1(1.6 * S)}">${c.m + 1}</text>`;
     }
-    for (let k = 0; k < nS; k++) o += staffSVG(k, sy, si, L, st, pts);
+    for (let k = 0; k < nS; k++) o += staffSVG(k, sy, si, L, st, pts, staves);
     if (sy.endBar)
       for (let k = 0; k < nS; k++)
         o += `<path class="bl" d="M${L.R} ${f1(sy.staff[k].yTop)}V${f1(sy.staff[k].yBot)}"/>`;
@@ -783,6 +837,57 @@ function renderSVG(staves, L, st) {
         o += `<path d="M${f1(x - 2 * w)} ${f1(yTop)}L${f1(x - w)} ${f1(yTop - S * 0.6)}L${f1(x)} ${f1(yTop)}L${f1(x + w)} ${f1(yTop - S * 0.6)}L${f1(x + 2 * w)} ${f1(yTop)}" stroke="currentColor" stroke-width="${f1(S * 0.12)}" fill="none"/>`;
       }
     });
+  }
+  const REP_SIGN_LABEL = { rs: "||:", re: ":||", segno: t("dyn.segno"), dc: t("dyn.dc"), ds: t("dyn.ds"), fine: t("dyn.fine") };
+  for (let k = 0; k < nS; k++) {
+    staves[k].events.forEach((e, i) => {
+      if (!e.rep) return;
+      const p = pts[k][i];
+      if (!p) return;
+      const x = p.hx[0],
+        yTop = Math.min(...p.ys) - S * 3.3;
+      o += `<text class="repsign" x="${f1(x)}" y="${f1(yTop)}" font-size="${f1(1.3 * S)}" text-anchor="middle">${escXml(REP_SIGN_LABEL[e.rep])}</text>`;
+    });
+  }
+  for (let k = 0; k < nS; k++) {
+    // terzine e gruppi irregolari: una parentesi col numero sopra ogni gruppo inserito con insertTuplet
+    const ev = staves[k].events;
+    let gi = 0;
+    while (gi < ev.length) {
+      const e0 = ev[gi];
+      if (e0.r || !e0.tuplet || e0.tuplet.i !== 0) {
+        gi++;
+        continue;
+      }
+      const { n } = e0.tuplet,
+        idx = [];
+      for (let q = gi; q < Math.min(gi + n, ev.length); q++) {
+        const eq = ev[q];
+        if (eq.r || !eq.tuplet || eq.tuplet.n !== n || eq.tuplet.i !== q - gi) break;
+        if (pts[k][q]) idx.push(q);
+      }
+      if (idx.length >= 2) {
+        const groups = [];
+        idx.forEach((q) => {
+          const sy = pts[k][q].sys,
+            g = groups[groups.length - 1];
+          if (g && g.sys === sy) g.q.push(q);
+          else groups.push({ sys: sy, q: [q] });
+        });
+        groups.forEach((g) => {
+          const a = pts[k][g.q[0]],
+            b = pts[k][g.q[g.q.length - 1]],
+            allYs = g.q.flatMap((q) => pts[k][q].ys),
+            yTop = Math.min(...allYs) - S * 2.2,
+            x1 = a.hx[0],
+            x2 = b.hx[b.hx.length - 1],
+            xm = (x1 + x2) / 2,
+            gap = Math.min(S * 0.6, (x2 - x1) / 3);
+          o += `<path d="M${f1(x1)} ${f1(yTop + S * 0.5)}V${f1(yTop)}H${f1(xm - gap)}M${f1(xm + gap)} ${f1(yTop)}H${f1(x2)}V${f1(yTop + S * 0.5)}" stroke="currentColor" stroke-width="${f1(S * 0.1)}" fill="none"/><text x="${f1(xm)}" y="${f1(yTop + S * 0.4)}" font-size="${f1(1.3 * S)}" font-style="italic" text-anchor="middle">${n}</text>`;
+        });
+      }
+      gi += n;
+    }
   }
   for (let k = 0; k < nS; k++) {
     const ev = staves[k].events;

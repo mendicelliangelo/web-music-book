@@ -67,6 +67,14 @@ function resplitEvents(events, bt) {
     changed = false;
   for (const e of events) {
     const tk = evTicks(e);
+    if (!e.r && e.tuplet) {
+      // le figure di un gruppo irregolare non vengono mai ridivise: la loro durata in tick non
+      // corrisponde a nessuna figura standard, quindi decompose()/makeEvents() non saprebbero
+      // scomporla. Per costruzione (insertTuplet) un gruppo non supera mai una battuta.
+      out.push(e);
+      t += tk;
+      continue;
+    }
     if ((t % bt) + tk > bt) {
       const pcs = makeEvents(t, tk, e.r ? null : e.n, bt);
       if (pcs.length > 1) {
@@ -76,7 +84,7 @@ function resplitEvents(events, bt) {
           last.n.forEach((n, j) => {
             if (e.n[j] && e.n[j].t) n.t = 1;
           });
-          ["dy", "st", "ac", "sl", "mk", "pd", "pu", "lyr", "chord", "ferm", "trill", "mord", "cr", "crEnd", "dim", "dimEnd"].forEach((f) => {
+          ["dy", "st", "ac", "sl", "mk", "pd", "pu", "lyr", "chord", "ferm", "trill", "mord", "cr", "crEnd", "dim", "dimEnd", "rep"].forEach((f) => {
             if (e[f]) pcs[0][f] = e[f];
           });
           if (e.se) last.se = 1;
@@ -217,6 +225,77 @@ function applyPedal(notes, spans) {
   });
 }
 const totalTicks = (events) => events.reduce((a, e) => a + evTicks(e), 0);
+function repeatMarksOf(events, bt) {
+  // legge i marcatori di ripetizione (e.rep) sulla prima/ultima figura di ogni battuta
+  const atStart = {},
+    atEnd = {};
+  let t = 0;
+  for (const e of events) {
+    if (!e.r && e.rep) {
+      const m = Math.floor(t / bt);
+      if (e.rep === "rs" || e.rep === "segno") atStart[m] = e.rep;
+      else atEnd[m] = e.rep;
+    }
+    t += evTicks(e);
+  }
+  return { atStart, atEnd };
+}
+function expandRepeatSegments(totalMeasures, atStart, atEnd) {
+  // sequenza di battute davvero "suonate" secondo i marcatori: ogni voce {m,out} dice "la battuta scritta
+  // m va eseguita nella posizione out". Semplificazioni consapevoli: un solo giro di ripetizione (non si
+  // contano le volte), e D.C./D.S. scattano una sola volta (niente ripetizioni annidate del salto stesso).
+  if (!Object.keys(atStart).length && !Object.keys(atEnd).length) return null;
+  const segs = [];
+  let m = 0,
+    out = 0,
+    usedJump = false,
+    lastRs = 0;
+  const doneRe = new Set(),
+    guard = totalMeasures * 4 + 40;
+  let steps = 0;
+  while (m < totalMeasures && steps++ < guard) {
+    segs.push({ m, out });
+    out++;
+    if (atStart[m] === "rs") lastRs = m;
+    const eType = atEnd[m];
+    if (eType === "re" && !doneRe.has(m)) {
+      doneRe.add(m);
+      m = lastRs;
+      continue;
+    }
+    if (!usedJump && (eType === "dc" || eType === "ds")) {
+      usedJump = true;
+      const segnoM = Object.keys(atStart).find((k) => atStart[k] === "segno");
+      m = eType === "dc" ? 0 : segnoM != null ? +segnoM : 0;
+      continue;
+    }
+    if (usedJump && eType === "fine") break;
+    m++;
+  }
+  return segs;
+}
+function expandEventsForRepeats(events, bt) {
+  // ricostruisce la sequenza di figure davvero "suonata" (non quella scritta) secondo i segni di
+  // ripetizione: usata da riproduzione, esportazione WAV e MIDI. L'esportazione MusicXML/PDF mostra
+  // invece i segni sulla notazione scritta, senza espanderla.
+  const { atStart, atEnd } = repeatMarksOf(events, bt);
+  const totalMeasures = Math.max(1, Math.ceil(totalTicks(events) / bt));
+  const segs = expandRepeatSegments(totalMeasures, atStart, atEnd);
+  if (!segs) return events;
+  const byMeasure = new Map();
+  let t = 0;
+  for (const e of events) {
+    const m = Math.floor(t / bt);
+    if (!byMeasure.has(m)) byMeasure.set(m, []);
+    byMeasure.get(m).push(e);
+    t += evTicks(e);
+  }
+  const out = [];
+  segs.forEach((seg) => {
+    (byMeasure.get(seg.m) || []).forEach((e) => out.push(e));
+  });
+  return out;
+}
 function cleanEvents(a) {
   // legge anche i progetti della versione precedente (una nota per figura)
   if (!Array.isArray(a)) return null;
@@ -261,6 +340,20 @@ function cleanEvents(a) {
       if (e.crEnd) x.crEnd = 1;
       if (e.dim) x.dim = 1;
       if (e.dimEnd) x.dimEnd = 1;
+      if (["rs", "re", "segno", "dc", "ds", "fine"].includes(e.rep)) x.rep = e.rep;
+      if (
+        e.tuplet &&
+        Number.isInteger(e.tuplet.n) &&
+        Number.isInteger(e.tuplet.d) &&
+        Number.isInteger(e.tuplet.i) &&
+        e.tuplet.n >= 2 &&
+        e.tuplet.n <= 9 &&
+        e.tuplet.d >= 1 &&
+        e.tuplet.d < e.tuplet.n &&
+        e.tuplet.i >= 0 &&
+        e.tuplet.i < e.tuplet.n
+      )
+        x.tuplet = { n: e.tuplet.n, d: e.tuplet.d, i: e.tuplet.i };
       out.push(x);
     }
   }

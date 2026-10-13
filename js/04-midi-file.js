@@ -45,14 +45,14 @@ function buildMidi(o) {
     mpq & 255,
   ];
   const end = Math.max(...o.staves.map((s) => totalTicks(s)));
-  const noteTrack = (events, ch) => {
+  const noteTrack = (events, ch, program) => {
     const list = [];
     for (const x of flattenNotes(events)) {
       list.push({ t: x.s, on: 1, m: x.m, v: x.v });
       list.push({ t: x.s + x.l, on: 0, m: x.m });
     }
     list.sort((a, b) => a.t * 2 + a.on - (b.t * 2 + b.on) || a.m - b.m);
-    const t = [0, 0xc0 | ch, o.program];
+    const t = [0, 0xc0 | ch, program];
     let prev = 0;
     for (const x of list) {
       t.push(
@@ -96,7 +96,7 @@ function buildMidi(o) {
     PPQ & 255,
   ];
   if (o.staves.length === 1) {
-    const t = noteTrack(o.staves[0], 0);
+    const t = noteTrack(o.staves[0], 0, o.programs[0]);
     return Uint8Array.from([
       ...head(0, 1),
       ...chunk([...conductor, ...t.bytes, ...vlq(end - t.prev), 0xff, 0x2f, 0]),
@@ -107,10 +107,106 @@ function buildMidi(o) {
     ...chunk([...conductor, 0, 0xff, 0x2f, 0]),
   ];
   o.staves.forEach((ev, k) => {
-    const t = noteTrack(ev, k);
+    const t = noteTrack(ev, k, o.programs[k]);
     parts.push(...chunk([...t.bytes, ...vlq(end - t.prev), 0xff, 0x2f, 0]));
   });
   return Uint8Array.from(parts);
+}
+const MUSICXML_STEPS = ["C", "D", "E", "F", "G", "A", "B"];
+const MUSICXML_TYPE = { w: "whole", h: "half", q: "quarter", e: "eighth", s: "16th", t: "32nd" };
+const MUSICXML_CLEF_SIGN = { gclef: "G", cclef: "C", fclef: "F" };
+function buildMusicXml(o) {
+  // esporta lo stesso modello letto da parseMusicXml/importToStaves: un <part> per pentagramma,
+  // una <measure> per battuta (gli eventi sono già tagliati sulle barre da resplitEvents, quindi
+  // nessuna figura attraversa mai una battuta). Sigle accordo e testo diventano semplici
+  // annotazioni <words>/<lyric>, non <harmony> strutturata, per non dipendere dalla lingua dell'interfaccia.
+  const bt = barTicksOf(o.meter),
+    { n: tn, d: td } = meterParts(o.meter),
+    esc = (s) => escXml(s);
+  const partIds = o.staves.map((_, i) => "P" + (i + 1));
+  const scoreParts = partIds
+    .map((id, i) => `<score-part id="${id}"><part-name>${esc((o.instNames && o.instNames[i]) || "Strumento")}</part-name></score-part>`)
+    .join("");
+  const parts = o.staves.map((st, si) => {
+    const clef = CLEFS[st.clef] || CLEFS.treble,
+      sign = MUSICXML_CLEF_SIGN[clef.glyph] || "G";
+    let measures = "",
+      t = 0,
+      measNum = 1,
+      curBar = [];
+    const flush = () => {
+      measures += `<measure number="${measNum}">${curBar.join("")}</measure>`;
+      curBar = [];
+      measNum++;
+    };
+    curBar.push(
+      `<attributes><divisions>${PPQ}</divisions><key><fifths>${o.key || 0}</fifths></key><time><beats>${tn}</beats><beat-type>${td}</beat-type></time><clef><sign>${sign}</sign><line>${clef.line}</line></clef></attributes>`,
+    );
+    if (si === 0)
+      curBar.push(
+        `<direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${o.bpm}</per-minute></metronome></direction-type><sound tempo="${o.bpm}"/></direction>`,
+      );
+    st.events.forEach((e, i) => {
+      const tk = evTicks(e);
+      if (e.r) {
+        curBar.push(`<note><rest/><duration>${tk}</duration><type>${MUSICXML_TYPE[e.v]}</type>${e.dot ? "<dot/>" : ""}</note>`);
+      } else {
+        if (e.rep === "rs") curBar.push('<barline location="left"><bar-style>heavy-light</bar-style><repeat direction="forward"/></barline>');
+        if (e.rep === "segno") curBar.push("<direction placement=\"above\"><direction-type><segno/></direction-type></direction>");
+        if (e.chord) curBar.push(`<direction placement="above"><direction-type><words>${esc(e.chord)}</words></direction-type></direction>`);
+        if (e.cr) curBar.push(`<direction placement="below"><direction-type><wedge type="crescendo" number="1"/></direction-type></direction>`);
+        if (e.dim) curBar.push(`<direction placement="below"><direction-type><wedge type="diminuendo" number="1"/></direction-type></direction>`);
+        const next = st.events[i + 1];
+        e.n.forEach((n, j) => {
+          const step = MUSICXML_STEPS[((n.d % 7) + 7) % 7],
+            octave = Math.floor(n.d / 7),
+            tieStart = !!next && !next.r && next.n.some((nn) => nn.t && nn.d === n.d && nn.a === n.a),
+            tieXml = (n.t ? '<tie type="stop"/>' : "") + (tieStart ? '<tie type="start"/>' : "");
+          let articulations = "",
+            ornaments = "",
+            ties = (n.t ? '<tied type="stop"/>' : "") + (tieStart ? '<tied type="start"/>' : "");
+          if (e.st) articulations += "<staccato/>";
+          if (e.ac) articulations += "<accent/>";
+          if (e.trill) ornaments += "<trill-mark/>";
+          if (e.mord) ornaments += "<mordent/>";
+          const slurs = (e.sl ? '<slur type="start" number="1"/>' : "") + (e.se ? '<slur type="stop" number="1"/>' : ""),
+            fermata = e.ferm ? "<fermata/>" : "",
+            tuplet = e.tuplet
+              ? e.tuplet.i === 0
+                ? '<tuplet type="start" number="1"/>'
+                : e.tuplet.i === e.tuplet.n - 1
+                  ? '<tuplet type="stop" number="1"/>'
+                  : ""
+              : "",
+            inner = articulations && `<articulations>${articulations}</articulations>` || "",
+            innerOrn = ornaments && `<ornaments>${ornaments}</ornaments>` || "",
+            notationsBody = inner + innerOrn + ties + slurs + fermata + tuplet,
+            notationsXml = notationsBody ? `<notations>${notationsBody}</notations>` : "",
+            lyricXml = j === 0 && e.lyr ? `<lyric><syllable>single</syllable><text>${esc(e.lyr)}</text></lyric>` : "",
+            timeModXml = e.tuplet
+              ? `<time-modification><actual-notes>${e.tuplet.n}</actual-notes><normal-notes>${e.tuplet.d}</normal-notes></time-modification>`
+              : "";
+          curBar.push(
+            `<note>${j > 0 ? "<chord/>" : ""}<pitch><step>${step}</step>${n.a ? `<alter>${n.a}</alter>` : ""}<octave>${octave}</octave></pitch><duration>${tk}</duration>${tieXml}<type>${MUSICXML_TYPE[e.v]}</type>${e.dot ? "<dot/>" : ""}${timeModXml}${notationsXml}${lyricXml}</note>`,
+          );
+        });
+        if (e.crEnd) curBar.push('<direction><direction-type><wedge type="stop" number="1"/></direction-type></direction>');
+        if (e.dimEnd) curBar.push('<direction><direction-type><wedge type="stop" number="1"/></direction-type></direction>');
+        if (e.rep === "re") curBar.push('<barline location="right"><bar-style>light-heavy</bar-style><repeat direction="backward"/></barline>');
+        if (e.rep === "dc") curBar.push('<direction><direction-type><words>D.C. al Fine</words></direction-type><sound dacapo="yes"/></direction>');
+        if (e.rep === "ds") curBar.push('<direction><direction-type><words>D.S. al Fine</words></direction-type><sound dalsegno="segno"/></direction>');
+        if (e.rep === "fine") curBar.push('<direction><direction-type><words>Fine</words></direction-type><sound fine="yes"/></direction>');
+      }
+      t += tk;
+      if (t % bt === 0) flush();
+    });
+    if (curBar.length) flush();
+    return `<part id="${partIds[si]}">${measures}</part>`;
+  });
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n' +
+    `<score-partwise version="3.1"><work><work-title>${esc(o.title || "Brano")}</work-title></work><part-list>${scoreParts}</part-list>${parts.join("")}</score-partwise>`
+  );
 }
 function parseMidi(buf) {
   const u = new Uint8Array(buf);

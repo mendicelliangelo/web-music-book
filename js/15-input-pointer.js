@@ -4,7 +4,12 @@ function locate(cx,cy){
   const r=svgEl.getBoundingClientRect(),k=lay.width/(r.width||lay.width),x=(cx-r.left)*k,y=(cy-r.top)*k,S=lay.S,H=S/2;
   let si=lay.systems.findIndex(s=>y<s.top+s.h+S*.2);if(si<0)si=lay.systems.length-1;
   const sy=lay.systems[si];
-  let kS=0;if(lay.nS>1&&y>(sy.staff[0].yBot+sy.staff[1].yTop)/2)kS=1;
+  let kS=0;
+  for(let k=0;k<lay.nS-1;k++){
+    const mid=(sy.staff[k].yBot+sy.staff[k+1].yTop)/2;
+    if(y<=mid){kS=k;break}
+    kS=k+1;
+  }
   const sf=sy.staff[kS],clef=state.staves[kS].clef,bd=CLEFS[clef].bottomD,pos=Math.max(-6,Math.min(14,Math.round((sf.yBot-y)/H)));
   const X=lay.X[kS];let hit=-1,hitN=-1;
   for(const c of sy.items){
@@ -53,7 +58,7 @@ $('btnDot').addEventListener('click',e=>{toggleDot();blurIfMouse(e)});
 $('btnSharp').addEventListener('click',e=>{setAcc(1);blurIfMouse(e)});
 $('btnFlat').addEventListener('click',e=>{setAcc(-1);blurIfMouse(e)});
 $('btnNat').addEventListener('click',e=>{setAcc(0);blurIfMouse(e)});
-$('btnChord').addEventListener('click',e=>{state.tool.chord=!state.tool.chord;updateChrome();blurIfMouse(e)});
+$('btnChordMode').addEventListener('click',e=>{state.tool.chord=!state.tool.chord;updateChrome();blurIfMouse(e)});
 $('btnTie').addEventListener('click',e=>{toggleTie();blurIfMouse(e)});
 $('btnRest').addEventListener('click',e=>{addRest();blurIfMouse(e)});
 $('btnDel').addEventListener('click',e=>{delBack();blurIfMouse(e)});
@@ -81,6 +86,12 @@ $('btnTrill').addEventListener('click',e=>{toggleTrill();blurIfMouse(e)});
 $('btnMordent').addEventListener('click',e=>{toggleMordent();blurIfMouse(e)});
 $('btnCresc').addEventListener('click',e=>{toggleHairpin('cr');blurIfMouse(e)});
 $('btnDim').addEventListener('click',e=>{toggleHairpin('dim');blurIfMouse(e)});
+$('btnRepStart').addEventListener('click',e=>{toggleRepeatMark('rs');blurIfMouse(e)});
+$('btnRepEnd').addEventListener('click',e=>{toggleRepeatMark('re');blurIfMouse(e)});
+$('btnSegno').addEventListener('click',e=>{toggleRepeatMark('segno');blurIfMouse(e)});
+$('btnDC').addEventListener('click',e=>{toggleRepeatMark('dc');blurIfMouse(e)});
+$('btnDS').addEventListener('click',e=>{toggleRepeatMark('ds');blurIfMouse(e)});
+$('btnFine').addEventListener('click',e=>{toggleRepeatMark('fine');blurIfMouse(e)});
 $('btnLyric').addEventListener('click',e=>{setLyric($('lyrText').value);$('lyrText').value='';blurIfMouse(e)});
 $('btnChord').addEventListener('click',e=>{setChord($('chordText').value);$('chordText').value='';blurIfMouse(e)});
 $('btnOver').addEventListener('click',e=>{toggleOver();blurIfMouse(e)});
@@ -154,13 +165,15 @@ $('earAnswers').addEventListener('click',e=>{
 });
 
 function onClefChange(k,v){stopPlay();state.staves[k].clef=v;if(k===state.as){state.kbOct=CLEFS[v].kbOct;buildKeys()}render()}
-$('clef0').addEventListener('change',e=>onClefChange(0,e.target.value));
-$('clef1').addEventListener('change',e=>onClefChange(1,e.target.value));
 $('key').addEventListener('change',e=>{stopPlay();state.key=+e.target.value;render()});
 $('meter').addEventListener('change',e=>{stopPlay();state.meter=e.target.value;render()});
-$('nS').addEventListener('change',e=>{stopPlay();state.nS=+e.target.value;if(state.as>=state.nS){state.as=0;state.cur=EV().length;state.sel=-1;state.selN=-1}render()});
+$('nS').addEventListener('change',e=>{
+  stopPlay();const n=+e.target.value;ensureStavesCount(n);state.nS=n;
+  if(state.as>=state.nS){state.as=0;state.cur=EV().length;state.sel=-1;state.selN=-1}
+  buildStaffRowsUI();render();
+});
 $('inst').addEventListener('change',e=>{
-  stopPlay();state.inst=e.target.value;render();beep(noteMidi({d:bdA()+2,a:0}));
+  stopPlay();state.staves[state.as].inst=e.target.value;state.inst=e.target.value;render();beep(noteMidi({d:bdA()+2,a:0}));
   if(instOf().perc)toast(t('t.drumsZones'));
 });
 function setBpm(v){const b=Math.round(+v);if(!(b>=30&&b<=240))return;stopPlay();state.bpm=b;render()}
@@ -182,11 +195,8 @@ $('reverb').addEventListener('input',e=>{
   if(synth.reverbWet)synth.reverbWet.gain.value=state.reverb;
   save();
 });
-[0,1].forEach(k=>{
-  $('solo'+k).addEventListener('change',e=>{state.staveMix[k].solo=e.target.checked});
-  $('mute'+k).addEventListener('change',e=>{state.staveMix[k].mute=e.target.checked});
-  $('vol'+k).addEventListener('input',e=>{state.staveMix[k].vol=Math.max(0,Math.min(1,(+e.target.value||0)/100))});
-});
+$('btnExerciseStart').addEventListener('click',e=>{exerciseStart();blurIfMouse(e)});
+$('btnExerciseStop').addEventListener('click',e=>{exerciseStop();blurIfMouse(e)});
 $('btnRehearsal').addEventListener('click',e=>{setRehearsalMark($('rehLetter').value);$('rehLetter').value='';blurIfMouse(e)});
 $('themeSel').addEventListener('change',e=>{
   const v=e.target.value;

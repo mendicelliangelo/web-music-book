@@ -152,7 +152,7 @@ function togglePedal(){
 }
 function clearMarks(){
   const mk=markTargets();if(!mk.length)return;
-  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se;delete e.pd;delete e.pu;delete e.lyr;delete e.chord;delete e.ferm;delete e.trill;delete e.mord;delete e.cr;delete e.crEnd;delete e.dim;delete e.dimEnd});render();
+  stopPlay();rec();mk.forEach(e=>{delete e.dy;delete e.st;delete e.ac;delete e.sl;delete e.se;delete e.pd;delete e.pu;delete e.lyr;delete e.chord;delete e.ferm;delete e.trill;delete e.mord;delete e.cr;delete e.crEnd;delete e.dim;delete e.dimEnd;delete e.rep});render();
 }
 function setRehearsalMark(letter){
   const mk=(letter||'').replace(/[^A-Za-z0-9]/g,'').slice(0,2);
@@ -177,6 +177,12 @@ function toggleMordent(){
   const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
   stopPlay();rec();const f=targets[0];
   if(f.mord)delete f.mord;else f.mord=1;
+  render();
+}
+function toggleRepeatMark(type){
+  const targets=markTargets();if(!targets.length){toast(t('t.writeOrSelectFirst'));return}
+  stopPlay();rec();const f=targets[0];
+  if(f.rep===type)delete f.rep;else f.rep=type;
   render();
 }
 function toggleHairpin(dir){

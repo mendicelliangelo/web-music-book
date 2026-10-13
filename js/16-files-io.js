@@ -32,14 +32,24 @@ $('btnExport').addEventListener('click',async()=>{
   stopPlay();if(recS.on)stopRec();
   if(!visible().some(s=>s.events.some(e=>!e.r))){toast(t('t.writeNoteBeforeMidi'));return}
   const slug=slugify(state.title)||'brano';
-  const midi=buildMidi({staves:visible().map(s=>s.events),bpm:state.bpm,meter:state.meter,key:state.key,program:instOf().program,title:state.title});
+  const midi=buildMidi({staves:visible().map(s=>expandEventsForRepeats(s.events,btNow())),bpm:state.bpm,meter:state.meter,key:state.key,programs:visible().map((s,k)=>instOf(k).program),title:state.title});
   await saveFile(slug+'-midi.zip',zipStore(slug+'.mid',midi));
+});
+$('btnExportXml').addEventListener('click',async()=>{
+  stopPlay();if(recS.on)stopRec();
+  if(!visible().some(s=>s.events.some(e=>!e.r))){toast(t('t.writeNoteBeforeMidi'));return}
+  const xml=buildMusicXml({staves:visible(),meter:state.meter,bpm:state.bpm,key:state.key,title:state.title,instNames:visible().map((s,k)=>instNameFor(instOf(k).id))});
+  await saveFile((slugify(state.title)||'brano')+'.musicxml',xml);
 });
 $('btnPdf').addEventListener('click',async()=>{
   stopPlay();if(recS.on)stopRec();
   if(!visible().some(s=>s.events.length)){toast(t('t.emptySheet'));return}
-  const instTr=instOf().transpose||0,pdfKey=instTr?keyAfterTranspose(state.key,instTr):state.key;
-  const pdfStaves=instTr?visible().map(s=>({...s,events:transposeEventsInKey(s.events,instTr,pdfKey)||s.events})):visible();
+  const trs=visible().map((s,k)=>instOf(k).transpose||0),distinct=[...new Set(trs.filter(x=>x))],
+    pdfKey=distinct.length===1?keyAfterTranspose(state.key,distinct[0]):state.key;
+  const pdfStaves=visible().map((s,k)=>{
+    const tr=trs[k];if(!tr)return s;
+    return {...s,events:transposeEventsInKey(s.events,tr,keyAfterTranspose(state.key,tr))||s.events};
+  });
   const pdf=buildPdf(pdfStaves,{meter:state.meter,key:pdfKey,nS:state.nS,bpm:state.bpm,title:state.title});
   await saveFile((slugify(state.title)||'brano')+'.pdf',pdf);
 });
@@ -102,7 +112,9 @@ $('btnExportWav').addEventListener('click',async()=>{
   if(!visible().some(s=>s.events.length)){toast(t('t.writeFirst'));return}
   const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
   if(!OAC){toast(t('t.noAudio'));return}
-  const spt=60/(state.bpm*PPQ)/(state.playbackRate||1),durSec=maxTotal()*spt+3;
+  const spt=60/(state.bpm*PPQ)/(state.playbackRate||1),bt=btNow(),
+    exp=s=>expandEventsForRepeats(s.events,bt),
+    durSec=Math.max(0,...visible().map(s=>totalTicks(exp(s))))*spt+3;
   const oac=new OAC(2,Math.max(1,Math.ceil(durSec*44100)),44100);
   const master=oac.createGain();master.gain.value=.9;
   const comp=oac.createDynamicsCompressor();
@@ -165,16 +177,16 @@ $('btnExportWav').addEventListener('click',async()=>{
     const m=mix[k]||{mute:false,solo:false,vol:1};
     if(m.mute||(anySolo&&!m.solo))return;
     const vol=m.vol==null?1:m.vol;
-    let staffNotes=applyPedal(flattenNotes(s.events),pedalSpans(s.events));
-    staffNotes=applyFermata(staffNotes,fermataTicks(s.events));
-    staffNotes=applyHairpins(staffNotes,hairpinSpans(s.events));
+    const evs=exp(s);
+    let staffNotes=applyPedal(flattenNotes(evs),pedalSpans(evs));
+    staffNotes=applyFermata(staffNotes,fermataTicks(evs));
+    staffNotes=applyHairpins(staffNotes,hairpinSpans(evs));
     if(state.swing)staffNotes=applySwing(staffNotes,beatTicksOf(state.meter));
     staffNotes.forEach(n=>notes.push({...n,v:Math.max(0,Math.min(127,Math.round(n.v*vol))),k}));
   });
-  const inst=instOf(),nS=state.nS;
+  const nS=state.nS;
   notes.forEach(n=>{
-    const pan=state.stereoStaves&&nS>1?(n.k===0?-.5:.5):0;
-    toneOff(n.m,0.1+n.s*spt,n.l*spt*.97,inst,n.v,pan);
+    toneOff(n.m,0.1+n.s*spt,n.l*spt*.97,instOf(n.k),n.v,panFor(n.k,nS));
   });
   toast(t('t.renderingAudio'));
   try{
@@ -257,7 +269,7 @@ function importMusicXml(text,name){
   state.as=0;state.cur=state.staves[0].events.length;
   state.title=name.replace(/\.[^.]+$/,'').slice(0,60)||t('t.loadedTitleFallback');
   state.kbOct=CLEFS[state.staves[0].clef].kbOct;
-  buildKeys();render();
+  buildStaffRowsUI();buildKeys();render();
   toast(t('t.loaded',{staves:r.n===2?t('t.loadedTwoStaves'):t('t.loadedOneStaff'),n:r.staves.reduce((a,s)=>a+s.events.length,0)}));
 }
 $('fileIn').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(f)openFile(f)});
@@ -283,7 +295,7 @@ function importMidi(buf,name){
   state.as=0;state.cur=state.staves[0].events.length;
   state.title=name.replace(/\.[^.]+$/,'').slice(0,60)||t('t.loadedTitleFallback');
   state.kbOct=CLEFS[state.staves[0].clef].kbOct;
-  buildKeys();render();
+  buildStaffRowsUI();buildKeys();render();
   toast(t('t.loaded',{staves:r.n===2?t('t.loadedTwoStaves'):t('t.loadedOneStaff'),n:r.staves.reduce((a,s)=>a+s.events.length,0)}));
 }
 function importJson(text){
@@ -293,7 +305,7 @@ function importJson(text){
   stopPlay();resetHistory();applySettings(o);applyStaves(arr);
   if(!o.nS)state.nS=1;
   state.as=0;state.cur=state.staves[0].events.length;state.kbOct=CLEFS[state.staves[0].clef].kbOct;
-  buildKeys();render();toast(t('t.projectLoaded'));
+  buildStaffRowsUI();buildKeys();render();toast(t('t.projectLoaded'));
 }
 $('btnNew').addEventListener('click',()=>{
   stopPlay();if(recS.on)stopRec();rec();
@@ -301,17 +313,18 @@ $('btnNew').addEventListener('click',()=>{
   toast(t('t.emptySheetUndo'));
 });
 const TEMPLATES=[
-  {id:'piano',nS:2,clef0:'treble',clef1:'bass',inst:'piano'},
-  {id:'voice',nS:2,clef0:'treble',clef1:'bass',inst:'piano'},
-  {id:'solo',nS:1,clef0:'treble',clef1:'bass',inst:'violin'},
+  {id:'piano',staves:[{clef:'treble',inst:'piano'},{clef:'bass',inst:'piano'}]},
+  {id:'voice',staves:[{clef:'treble',inst:'piano'},{clef:'bass',inst:'piano'}]},
+  {id:'solo',staves:[{clef:'treble',inst:'violin'}]},
+  {id:'quartet',staves:[{clef:'treble',inst:'violin'},{clef:'treble',inst:'violin'},{clef:'alto',inst:'violin'},{clef:'bass',inst:'violin'}]},
 ];
 function newFromTemplate(id){
   const tpl=TEMPLATES.find(x=>x.id===id);if(!tpl)return;
   stopPlay();if(recS.on)stopRec();resetHistory();
-  state.staves=[{clef:tpl.clef0,events:[]},{clef:tpl.clef1,events:[]}];
-  state.nS=tpl.nS;state.inst=tpl.inst;state.key=0;state.meter='4/4';state.bpm=108;
+  state.staves=tpl.staves.map(s=>({clef:s.clef,events:[],inst:s.inst}));
+  state.nS=tpl.staves.length;state.inst=tpl.staves[0].inst;state.key=0;state.meter='4/4';state.bpm=108;
   state.as=0;state.cur=0;state.sel=-1;state.selEnd=-1;state.selN=-1;state.title=t('sheet.untitled');
-  state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildKeys();render();
+  buildStaffRowsUI();state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildKeys();render();
   toast(t('t.templateLoaded',{name:t('files.tpl.'+id)}));
 }
 $('btnTemplate').addEventListener('click',()=>newFromTemplate($('tplSel').value));
@@ -336,7 +349,7 @@ function restoreVersion(){
   stopPlay();if(recS.on)stopRec();resetHistory();
   applySettings(v.data);applyStaves(v.data.staves);
   state.as=0;state.cur=state.staves[0].events.length;state.sel=-1;state.selEnd=-1;state.selN=-1;
-  state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildKeys();render();
+  state.kbOct=CLEFS[state.staves[0].clef].kbOct;buildStaffRowsUI();buildKeys();render();
   toast(t('t.versionRestored',{name:v.title||t('sheet.untitled')}));
 }
 function deleteVersion(){

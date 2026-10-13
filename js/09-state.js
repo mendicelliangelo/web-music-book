@@ -11,10 +11,13 @@ const exampleEvents=()=>[
 const state={title:t('sheet.exampleTitle'),meter:'4/4',bpm:108,inst:'piano',key:0,nS:1,zoom:1,measureNumEvery:0,noteNames:false,noteColors:false,staffColors:false,playbackRate:1,loopSel:false,swing:false,stereoStaves:false,reverb:0,handwritten:false,
   keymap:{rest:'r',over:'o',staccato:'s',slur:'l',tie:'t',dot:'.',sharp:'+',flat:'-',natural:'=',accent:'>'},
   staveMix:[{mute:false,solo:false,vol:1},{mute:false,solo:false,vol:1}],
-  staves:[{clef:'treble',events:exampleEvents()},{clef:'bass',events:[]}],
+  staves:[{clef:'treble',events:exampleEvents(),inst:'piano'},{clef:'bass',events:[],inst:'piano'}],
   as:0,cur:0,sel:-1,selEnd:-1,selN:-1,clip:null,tool:{dur:'q',dot:false,acc:null,chord:false,over:false,timed:false,pc:false,pcLayout:'tracker'},kbOct:4};
 state.cur=state.staves[0].events.length;
-const instOf=()=>INSTRUMENTS.find(i=>i.id===state.inst)||INSTRUMENTS[0];
+const instOf=(k)=>{
+  const kk=k==null?state.as:k,s=state.staves[kk],id=(s&&s.inst)||state.inst;
+  return INSTRUMENTS.find(i=>i.id===id)||INSTRUMENTS[0];
+};
 const EV=()=>state.staves[state.as].events;
 const visible=()=>state.staves.slice(0,state.nS);
 const bdA=()=>CLEFS[state.staves[state.as].clef].bottomD;
@@ -28,7 +31,7 @@ function applySettings(o){
   const b=Math.round(+o.bpm);if(b>=30&&b<=240)state.bpm=b;
   if(INSTRUMENTS.some(i=>i.id===o.inst))state.inst=o.inst;
   if(typeof o.title==='string')state.title=o.title.slice(0,60);
-  if(o.nS===1||o.nS===2)state.nS=o.nS;
+  if(Number.isInteger(o.nS)&&o.nS>=1&&o.nS<=MAX_STAVES)state.nS=o.nS;
   const z=+o.zoom;if(z>=0.7&&z<=2)state.zoom=z;
   if([0,1,2,4,8].includes(+o.measureNumEvery))state.measureNumEvery=+o.measureNumEvery;
   if(typeof o.noteNames==='boolean')state.noteNames=o.noteNames;
@@ -41,12 +44,20 @@ function applySettings(o){
   const rv=+o.reverb;if(rv>=0&&rv<=1)state.reverb=rv;
   if(typeof o.handwritten==='boolean')state.handwritten=o.handwritten;
 }
-function applyStaves(arr){                         // arr: [{clef,events}] (formato nuovo) oppure un solo elenco vecchio
-  const out=[];
-  for(let k=0;k<2;k++){
+function ensureStavesCount(n){
+  // aggiunge pentagrammi vuoti quando l'utente alza il numero di pentagrammi oltre quelli già esistenti
+  while(state.staves.length<n)state.staves.push({clef:'treble',events:[],inst:state.inst});
+}
+function applyStaves(arr){                        // arr: [{clef,events,inst}] (formato nuovo) oppure un solo elenco vecchio
+  const out=[],slots=Math.min(MAX_STAVES,Math.max(arr.length,2));
+  for(let k=0;k<slots;k++){
     const s=arr[k];
     const ev=s?cleanEvents(s.events):null;
-    out.push({clef:s&&CLEFS[s.clef]?s.clef:(k?'bass':'treble'),events:ev||[]});
+    out.push({
+      clef:s&&CLEFS[s.clef]?s.clef:(k?'bass':'treble'),
+      events:ev||[],
+      inst:s&&INSTRUMENTS.some(i=>i.id===s.inst)?s.inst:state.inst,
+    });
   }
   state.staves=out;
 }
