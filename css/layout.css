@@ -55,7 +55,7 @@ html.embed .topbar {
   gap: 10px;
 }
 .icon-btn {
-  display: none;
+  display: inline-flex;
 }
 
 .layout {
@@ -75,7 +75,22 @@ html.embed .topbar {
   overflow-y: auto;
 }
 .side-h {
-  display: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 700 15px/1 var(--ui);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.side-h button {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 7px;
 }
 .main {
   display: flex;
@@ -84,9 +99,33 @@ html.embed .topbar {
   min-width: 0;
 }
 
+/* pannelli chiudibili anche da schermo largo: chiudendo un lato lo spartito si allarga */
+.app.hide-left .layout {
+  grid-template-columns: minmax(0, 1fr) 272px;
+}
+.app.hide-right .layout {
+  grid-template-columns: 272px minmax(0, 1fr);
+}
+.app.hide-left.hide-right .layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app.hide-left .side-left,
+.app.hide-right .side-right {
+  display: none;
+}
+
 @media (max-width: 1080px) {
   .layout {
     grid-template-columns: 240px minmax(0, 1fr) 240px;
     gap: 12px;
+  }
+  .app.hide-left .layout {
+    grid-template-columns: minmax(0, 1fr) 240px;
+  }
+  .app.hide-right .layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .app.hide-left.hide-right .layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
