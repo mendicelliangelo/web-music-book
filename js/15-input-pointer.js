@@ -29,25 +29,17 @@ $('score').addEventListener('click',ev=>{
   if(!svgEl)return;
   const h=locate(ev.clientX,ev.clientY);
   if(h.hit>=0){select(h.hit,h.hitN,h.kS,ev.shiftKey);return}
+  stopPlay();
   if(h.kS!==state.as){state.as=h.kS;state.kbOct=CLEFS[state.staves[h.kS].clef].kbOct;buildKeys()}
-  const was=state.tool.chord;if(ev.shiftKey)state.tool.chord=true;
-  const a=state.tool.acc!==null?state.tool.acc:keyAlter(state.key,h.d%7);
-  insertNote(h.ins,h.d,a);
-  state.tool.chord=was;
-  updateChrome();
+  state.cur=h.ins;state.sel=-1;state.selEnd=-1;state.selN=-1;
+  render();updateChrome();
 });
 $('score').addEventListener('pointermove',ev=>{
   if(ev.pointerType!=='mouse'||!svgEl||!ghost)return;
-  const h=locate(ev.clientX,ev.clientY),S=lay.S,H=S/2;
-  if(h.hit>=0){ghost.style.display='none';$('readout').textContent=t('sheet.readoutSel');return}
-  const y=h.sf.yBot-h.pos*H;
-  ghost.style.display='';ghost.setAttribute('transform',`translate(${f1(h.x)} ${f1(y)})`);
-  let lg='';
-  if(h.pos<=-2)for(let p=-2;p>=h.pos;p-=2)lg+=`M${f1(-S*1.05)} ${f1((h.pos-p)*H)}H${f1(S*1.05)}`;
-  if(h.pos>=10)for(let p=10;p<=h.pos;p+=2)lg+=`M${f1(-S*1.05)} ${f1((h.pos-p)*H)}H${f1(S*1.05)}`;
-  $('ghostLed').setAttribute('d',lg);
-  const a=state.tool.acc!==null?state.tool.acc:keyAlter(state.key,h.d%7);
-  $('readout').textContent=`${state.nS>1?t('sheet.readoutStaff')+' '+(h.kS+1)+' · ':''}${noteLabel({d:h.d,a})} · ${durLabel(state.tool.dur,state.tool.dot)}`;
+  const h=locate(ev.clientX,ev.clientY);
+  ghost.style.display='none';
+  if(h.hit>=0){$('readout').textContent=t('sheet.readoutSel');return}
+  $('readout').textContent=`${state.nS>1?t('sheet.readoutStaff')+' '+(h.kS+1)+' · ':''}${t('sheet.readoutMove')}`;
 });
 $('score').addEventListener('pointerleave',()=>{if(ghost)ghost.style.display='none';$('readout').textContent=''});
 $('warn').addEventListener('click',e=>{if(e.target.closest('#fixBars'))fixBars()});
