@@ -227,6 +227,7 @@ svg.score {
   cursor: crosshair;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .rule {
   stroke: var(--rule);

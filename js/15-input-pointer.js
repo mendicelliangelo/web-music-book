@@ -25,21 +25,75 @@ function locate(cx,cy){
   for(let i=0;i<X.ev.length;i++){const p=lay.evPos[kS][i];if(p&&(p.sys>si||(p.sys===si&&p.col.cx>x))){ins=i;break}}
   return{x,y,pos,hit,hitN,ins,d:bd+pos,sy,sf,kS};
 }
-$('score').addEventListener('click',ev=>{
-  if(!svgEl)return;
-  const h=locate(ev.clientX,ev.clientY);
-  if(h.hit>=0){select(h.hit,h.hitN,h.kS,ev.shiftKey);return}
+/* Tasto sinistro o tocco semplice: sposta solo il cursore. Tasto destro del mouse, o pressione
+   lunga col dito, scrivono subito l'elemento (nota o accordo) nel punto indicato. */
+let lastPointerType='mouse';
+let lpTimer=0,lpStart=null,lpFired=false,suppressClick=false;
+const LP_MS=500,LP_TOL=10;
+function insertAtPoint(h,forceChord){
+  if(h.kS!==state.as){state.as=h.kS;state.kbOct=CLEFS[state.staves[h.kS].clef].kbOct;buildKeys()}
+  const was=state.tool.chord;if(forceChord)state.tool.chord=true;
+  const a=state.tool.acc!==null?state.tool.acc:keyAlter(state.key,h.d%7);
+  insertNote(h.ins,h.d,a);
+  state.tool.chord=was;
+  updateChrome();
+}
+function moveCursorTo(h){
   stopPlay();
   if(h.kS!==state.as){state.as=h.kS;state.kbOct=CLEFS[state.staves[h.kS].clef].kbOct;buildKeys()}
   state.cur=h.ins;state.sel=-1;state.selEnd=-1;state.selN=-1;
   render();updateChrome();
+}
+$('score').addEventListener('pointerdown',ev=>{
+  lastPointerType=ev.pointerType||'mouse';
+  clearTimeout(lpTimer);lpFired=false;lpStart=null;
+  if(lastPointerType!=='touch'&&lastPointerType!=='pen')return;
+  lpStart={x:ev.clientX,y:ev.clientY};
+  lpTimer=setTimeout(()=>{
+    lpFired=true;
+    const h=locate(lpStart.x,lpStart.y);
+    if(h.hit>=0)select(h.hit,h.hitN,h.kS,false);
+    else insertAtPoint(h,false);
+  },LP_MS);
+});
+const cancelLongPress=()=>{
+  clearTimeout(lpTimer);
+  if(lpFired)suppressClick=true;
+  lpStart=null;
+};
+$('score').addEventListener('pointerup',cancelLongPress);
+$('score').addEventListener('pointercancel',cancelLongPress);
+$('score').addEventListener('pointermove',ev=>{
+  if(!lpStart||(lastPointerType!=='touch'&&lastPointerType!=='pen'))return;
+  if(Math.hypot(ev.clientX-lpStart.x,ev.clientY-lpStart.y)>LP_TOL){clearTimeout(lpTimer);lpStart=null}
+});
+$('score').addEventListener('contextmenu',ev=>{
+  if(!svgEl)return;
+  ev.preventDefault();
+  if(lastPointerType!=='mouse')return;
+  const h=locate(ev.clientX,ev.clientY);
+  if(h.hit>=0){select(h.hit,h.hitN,h.kS,ev.shiftKey);return}
+  insertAtPoint(h,ev.shiftKey);
+});
+$('score').addEventListener('click',ev=>{
+  if(!svgEl)return;
+  if(suppressClick){suppressClick=false;return}
+  const h=locate(ev.clientX,ev.clientY);
+  if(h.hit>=0){select(h.hit,h.hitN,h.kS,ev.shiftKey);return}
+  moveCursorTo(h);
 });
 $('score').addEventListener('pointermove',ev=>{
   if(ev.pointerType!=='mouse'||!svgEl||!ghost)return;
-  const h=locate(ev.clientX,ev.clientY);
-  ghost.style.display='none';
-  if(h.hit>=0){$('readout').textContent=t('sheet.readoutSel');return}
-  $('readout').textContent=`${state.nS>1?t('sheet.readoutStaff')+' '+(h.kS+1)+' · ':''}${t('sheet.readoutMove')}`;
+  const h=locate(ev.clientX,ev.clientY),S=lay.S,H=S/2;
+  if(h.hit>=0){ghost.style.display='none';$('readout').textContent=t('sheet.readoutSel');return}
+  const y=h.sf.yBot-h.pos*H;
+  ghost.style.display='';ghost.setAttribute('transform',`translate(${f1(h.x)} ${f1(y)})`);
+  let lg='';
+  if(h.pos<=-2)for(let p=-2;p>=h.pos;p-=2)lg+=`M${f1(-S*1.05)} ${f1((h.pos-p)*H)}H${f1(S*1.05)}`;
+  if(h.pos>=10)for(let p=10;p<=h.pos;p+=2)lg+=`M${f1(-S*1.05)} ${f1((h.pos-p)*H)}H${f1(S*1.05)}`;
+  $('ghostLed').setAttribute('d',lg);
+  const a=state.tool.acc!==null?state.tool.acc:keyAlter(state.key,h.d%7);
+  $('readout').textContent=`${state.nS>1?t('sheet.readoutStaff')+' '+(h.kS+1)+' · ':''}${noteLabel({d:h.d,a})} · ${durLabel(state.tool.dur,state.tool.dot)}`;
 });
 $('score').addEventListener('pointerleave',()=>{if(ghost)ghost.style.display='none';$('readout').textContent=''});
 $('warn').addEventListener('click',e=>{if(e.target.closest('#fixBars'))fixBars()});
